@@ -1,0 +1,11 @@
+worldprefix: end
+roundmax: 5
+crystal-break-penalty: -200000
+crystal-break-bonus: 10000
+crystal-place-bonus: 25000
+fishing-trash: 1000
+fishing-bonus: 2000
+fishing-salmon-bonus: 6000
+fishing-clownfish-bonus: 100000
+fishing-pufferfish-bonus: 12000
+stopworld: []

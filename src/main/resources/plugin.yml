@@ -1,0 +1,8 @@
+name: EcoDragon
+main: jp.minecraftuser.ecodragon.EcoDragon
+version: ${project.version}
+depend: [EcoFramework]
+commands:
+  ecd:
+    description: ecd command.
+    usage: /<command> option
