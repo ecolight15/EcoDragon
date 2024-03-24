@@ -8,6 +8,7 @@ import jp.minecraftuser.ecoframework.PluginFrame;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.enchantments.Enchantment;
@@ -18,7 +19,9 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.Skeleton;
+import org.bukkit.entity.Stray;
+import org.bukkit.entity.Warden;
+import org.bukkit.entity.WitherSkeleton;
 import org.bukkit.entity.Zombie;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -46,7 +49,7 @@ public class PowerDragonListener extends ListenerFrame {
      */
     public PowerDragonListener(PluginFrame plg_, String name_) {
         super(plg_, name_);
-        ranking = (RankingListener) plg.getPluginListerner("ranking");
+        ranking = (RankingListener) plg.getPluginListener("ranking");
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -132,10 +135,10 @@ public class PowerDragonListener extends ListenerFrame {
 //                    if ((changeLoc.getBlock().getType() == Material.OBSIDIAN) && ((checkLoc.getBlock().getType() == Material.WATER) || (checkLoc.getBlock().getType() == Material.STATIONARY_WATER))) continue;
                     // 水も破壊しない
                     if (changeLoc.getBlock().getType() == Material.WATER) continue;
-                    if (changeLoc.getBlock().getType() == Material.STATIONARY_WATER) continue;
+                    if (changeLoc.getBlock().getType() == Material.LAVA) continue;
                     // あと看板も
-                    if (changeLoc.getBlock().getType() == Material.SIGN) continue;
-                    if (changeLoc.getBlock().getType() == Material.SIGN_POST) continue;
+                    if (changeLoc.getBlock().getType() == Material.OAK_SIGN) continue;
+                    if (changeLoc.getBlock().getType().name().contains("SIGN")) continue;
                     // チェストも壊さない
                     //if (changeLoc.getBlock().getType() == Material.CHEST) continue;
                     //if (changeLoc.getBlock().getType() == Material.ENDER_CHEST) continue;
@@ -247,13 +250,24 @@ public class PowerDragonListener extends ListenerFrame {
             if (hp < 50) {tgtcnt = 3;}
             if (hp < 20) {tgtcnt = 5;}
             if (hp < 10) {tgtcnt = 7;}
+            List<Player> players = event.getEntity().getWorld().getPlayers();
+            boolean isOnlyCreativeUser = true;
             for (int loop = 0; loop < tgtcnt; loop++) {
                 // ランダムプレイヤー算出
                 target = rand.nextInt(plist.size());
-                tgtp = event.getEntity().getWorld().getPlayers().get(target);
+                tgtp = players.get(target);
 
                 // creativeユーザーは除外
                 if (tgtp.getGameMode() == GameMode.CREATIVE) {
+                    boolean exitSurvivalPlayer = false;
+                    for(Player player:players){
+                        if(player.getGameMode() == GameMode.SURVIVAL){
+                            exitSurvivalPlayer = true;
+                        }
+                    }
+                    if(!exitSurvivalPlayer){
+                        break;
+                    }
                     tgtcnt++;
                     continue;
                 }
@@ -310,15 +324,15 @@ public class PowerDragonListener extends ListenerFrame {
                     ent.setTarget(tgtp);
                 }
                 else if (hp > 60) { // HPが60%以上の場合のMOB
-                    Skeleton ent = (Skeleton)spawnSkeleton(event.getEntity());
+                    Stray ent = spawnSkeleton(event.getEntity());
                     ent.setTarget(tgtp);
                 }
                 else if (hp > 40) { // HPが40%以上の場合のMOB
-                    Zombie ent = (Zombie)spawnZombie(event.getEntity());
+                    Zombie ent = spawnZombie(event.getEntity());
                     ent.setTarget(tgtp);
                 }
                 else if (hp > 20) { // HPが20%以上の場合のMOB
-                    Skeleton ent = (Skeleton)spawnWitherSkeleton(event.getEntity());
+                    WitherSkeleton ent = spawnWitherSkeleton(event.getEntity());
                     ent.setTarget(tgtp);
                 }
                 else {              // HPが19%以下の場合のMOB
@@ -373,19 +387,25 @@ public class PowerDragonListener extends ListenerFrame {
                     if (ent.getType() == EntityType.IRON_GOLEM) ent.remove();
                     if (ent.getType() == EntityType.WITHER) ent.remove();
                     if (ent.getType() == EntityType.ZOMBIE) ent.remove();
+                    if (ent.getType() == EntityType.STRAY) ent.remove();
+                    if (ent.getType() == EntityType.WITHER_SKELETON) ent.remove();
                     if (ent.getType() == EntityType.SKELETON) ent.remove();
                 }   bossdamage = false;
                 Player killer = event.getEntity().getKiller();
                 if (killer != null) {
                     plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f ["+event.getEntity().getKiller().getName()+"]がエンダードラゴンを撃破");
-                }   for (int cnt = 0; cnt < 8; cnt++) {
-                    event.getEntity().getWorld().spawnEntity(event.getEntity().getLocation(), EntityType.ENDERMAN);
-                    event.getEntity().getWorld().spawnEntity(event.getEntity().getLocation(), EntityType.GHAST);
-                    event.getEntity().getWorld().spawnEntity(event.getEntity().getLocation(), EntityType.CREEPER);
-                }   event.getEntity().getWorld().spawnEntity(event.getEntity().getLocation(), EntityType.GIANT);
-                event.getEntity().getWorld().spawnEntity(event.getEntity().getLocation(), EntityType.GIANT);
-                event.getEntity().getWorld().spawnEntity(event.getEntity().getLocation(), EntityType.GIANT);
-                event.getEntity().getWorld().spawnEntity(event.getEntity().getLocation(), EntityType.GIANT);
+                }
+                World w = event.getEntity().getWorld();
+                Location l = event.getEntity().getLocation();
+                for (int cnt = 0; cnt < 8; cnt++) {
+
+                    w.spawnEntity(l, EntityType.ENDERMAN);
+                    w.spawnEntity(l, EntityType.GHAST);
+                    w.spawnEntity(l, EntityType.CREEPER);
+                }
+                for (int cnt = 0; cnt < 2; cnt++) {
+                    spawnWarden(event.getEntity());
+                }
                 break;
             case WITHER:
                 spawnWitherSkeleton(event.getEntity());
@@ -398,12 +418,10 @@ public class PowerDragonListener extends ListenerFrame {
         }
     }
 
-    public LivingEntity spawnWitherSkeleton(Entity entity) {
-        Skeleton ent = (Skeleton)entity.getWorld().spawnEntity(entity.getLocation(),
-                EntityType.SKELETON);
-        ent.setSkeletonType(Skeleton.SkeletonType.WITHER);
-        ent.getEquipment().setItemInHand(addAtkEnchant(new ItemStack(Material.DIAMOND_SWORD)));
-        ent.getEquipment().setItemInHandDropChance(0.001f);
+    public WitherSkeleton spawnWitherSkeleton(Entity entity) {
+        WitherSkeleton ent = (WitherSkeleton)entity.getWorld().spawnEntity(entity.getLocation(), EntityType.WITHER_SKELETON);
+        ent.getEquipment().setItemInMainHand(addAtkEnchant(new ItemStack(Material.DIAMOND_SWORD)));
+        ent.getEquipment().setItemInMainHandDropChance(0.001f);
         ent.getEquipment().setBoots(addDefEnchant(new ItemStack(Material.DIAMOND_BOOTS)));
         ent.getEquipment().setBootsDropChance(0.001f);
         ent.getEquipment().setChestplate(addDefEnchant(new ItemStack(Material.DIAMOND_CHESTPLATE)));
@@ -425,12 +443,10 @@ public class PowerDragonListener extends ListenerFrame {
 
         return ent;
     }
-    public LivingEntity spawnSkeleton(Entity entity) {
-        Skeleton ent = (Skeleton)entity.getWorld().spawnEntity(entity.getLocation(),
-                EntityType.SKELETON);
-        ent.setSkeletonType(Skeleton.SkeletonType.STRAY);
-        ent.getEquipment().setItemInHand(addShotEnchant(new ItemStack(Material.BOW)));
-        ent.getEquipment().setItemInHandDropChance(0.001f);
+    public Stray spawnSkeleton(Entity entity) {
+        Stray ent = (Stray)entity.getWorld().spawnEntity(entity.getLocation(), EntityType.STRAY);
+        ent.getEquipment().setItemInMainHand(addShotEnchant(new ItemStack(Material.BOW)));
+        ent.getEquipment().setItemInMainHandDropChance(0.001f);
         ent.getEquipment().setBoots(addDefEnchant(new ItemStack(Material.DIAMOND_BOOTS)));
         ent.getEquipment().setBootsDropChance(0.001f);
         ent.getEquipment().setChestplate(addDefEnchant(new ItemStack(Material.DIAMOND_CHESTPLATE)));
@@ -452,11 +468,11 @@ public class PowerDragonListener extends ListenerFrame {
 
         return ent;
     }
-    public LivingEntity spawnZombie(Entity entity) {
+    public Zombie spawnZombie(Entity entity) {
         Zombie ent = (Zombie)entity.getWorld().spawnEntity(entity.getLocation(),
                 EntityType.ZOMBIE);
-        ent.getEquipment().setItemInHand(addAtkEnchant(new ItemStack(Material.DIAMOND_SWORD)));
-        ent.getEquipment().setItemInHandDropChance(0.001f);
+        ent.getEquipment().setItemInMainHand(addAtkEnchant(new ItemStack(Material.DIAMOND_SWORD)));
+        ent.getEquipment().setItemInMainHandDropChance(0.001f);
         ent.getEquipment().setBoots(addDefEnchant(new ItemStack(Material.DIAMOND_BOOTS)));
         ent.getEquipment().setBootsDropChance(0.001f);
         ent.getEquipment().setChestplate(addDefEnchant(new ItemStack(Material.DIAMOND_CHESTPLATE)));
@@ -470,7 +486,6 @@ public class PowerDragonListener extends ListenerFrame {
         ent.setCanPickupItems(false);
         ent.setCustomName("闇の眷属(腐)");
         ent.setCustomNameVisible(true);
-        ent.setVillager(true);
         ent.setRemoveWhenFarAway(false);
         PotionEffect p = new PotionEffect(PotionEffectType.SPEED, 20*60*60*24*7*5, 5);
         ent.addPotionEffect(p);
@@ -478,5 +493,20 @@ public class PowerDragonListener extends ListenerFrame {
         ent.addPotionEffect(p);
         return ent;
     }
+    public Warden spawnWarden(Entity entity) {
+        Warden ent = (Warden)entity.getWorld().spawnEntity(entity.getLocation(), EntityType.WARDEN);
+        // ステータス
+        ent.setCanPickupItems(false);
+        ent.setCustomName("闇の眷属(深)");
+        ent.setCustomNameVisible(true);
+        ent.setRemoveWhenFarAway(false);
+        ent.setHealth(ent.getHealth() / 10);
 
+        PotionEffect p = new PotionEffect(PotionEffectType.SPEED, 20*60*60*24*7*5, 5);
+        ent.addPotionEffect(p);
+        p = new PotionEffect(PotionEffectType.GLOWING, 20*60*60*24*7*5, 5);
+        ent.addPotionEffect(p);
+
+        return ent;
+    }
 }

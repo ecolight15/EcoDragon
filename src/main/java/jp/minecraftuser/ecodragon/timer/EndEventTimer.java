@@ -2,6 +2,8 @@ package jp.minecraftuser.ecodragon.timer;
 
 import jp.minecraftuser.ecoframework.PluginFrame;
 import jp.minecraftuser.ecoframework.TimerFrame;
+
+import org.bukkit.GameRule;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.DisplaySlot;
@@ -58,7 +60,7 @@ public class EndEventTimer extends TimerFrame {
             if (dmgobj != null) dmgobj.unregister();
         }
         if (w != null) {
-            w.setGameRuleValue("keepInventory", "false");
+            w.setGameRule(GameRule.KEEP_INVENTORY, false);
         }
     }
 }

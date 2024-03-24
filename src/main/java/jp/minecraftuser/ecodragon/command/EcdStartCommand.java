@@ -40,7 +40,7 @@ public class EcdStartCommand extends CommandFrame {
     @Override
     public boolean worker(CommandSender sender, String[] args) {
         Player p = (Player) sender;
-        RankingListener lisn = (RankingListener) plg.getPluginListerner("ranking");
+        RankingListener lisn = (RankingListener) plg.getPluginListener("ranking");
         lisn.setFirst();
         if (!lisn.startEnderDragonRanking(p.getWorld(), true)) {
             sender.sendMessage("[" + plg.getName() + "] エンドラ戦が開始できませんでした。");

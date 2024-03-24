@@ -55,6 +55,8 @@ public class EcdClearCommand extends CommandFrame {
             if (ent.getType() == EntityType.IRON_GOLEM) ent.remove();
             if (ent.getType() == EntityType.WITHER) ent.remove();
             if (ent.getType() == EntityType.ZOMBIE) ent.remove();
+            if (ent.getType() == EntityType.STRAY) ent.remove();
+            if (ent.getType() == EntityType.WITHER_SKELETON) ent.remove();
             if (ent.getType() == EntityType.SKELETON) ent.remove();
         }
         return true;

@@ -1,6 +1,7 @@
 
 package jp.minecraftuser.ecodragon;
 
+import jp.minecraftuser.ecodragon.command.EcdBookCommand;
 import jp.minecraftuser.ecodragon.command.EcdClearCommand;
 import jp.minecraftuser.ecodragon.command.EcdCommand;
 import jp.minecraftuser.ecodragon.command.EcdEndCommand;
@@ -81,6 +82,7 @@ public class EcoDragon extends PluginFrame {
         cmd.addCommand(new EcdEndCommand(this, "end"));
         cmd.addCommand(new EcdClearCommand(this, "clear"));
         cmd.addCommand(new EcdPvPCommand(this, "pvp"));
+        cmd.addCommand(new EcdBookCommand(this, "book"));
         registerPluginCommand(cmd);
     }
 

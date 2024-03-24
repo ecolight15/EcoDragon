@@ -40,7 +40,7 @@ public class EcdPvPCommand extends CommandFrame {
      */
     @Override
     public boolean worker(CommandSender sender, String[] args) {
-        RankingListener ranking = (RankingListener) plg.getPluginListerner("ranking");
+        RankingListener ranking = (RankingListener) plg.getPluginListener("ranking");
         // エンドラ戦未参加の場合
         if (!ranking.isExistPlayer((Player) sender)) {
             sender.sendMessage("[" + plg.getName() + "] あなたは現在エンダードラゴン戦に未参加です");

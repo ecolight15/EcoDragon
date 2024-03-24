@@ -1,6 +1,8 @@
 
 package jp.minecraftuser.ecodragon.listener;
 
+import static jp.minecraftuser.ecoframework.Utl.sendPluginMessage;
+
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -10,7 +12,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import javax.swing.text.html.HTML;
 import jp.minecraftuser.ecodragon.EcoDragonUser;
 import jp.minecraftuser.ecoframework.PluginFrame;
 import jp.minecraftuser.ecodragon.config.CertificateConfig;
@@ -20,27 +21,26 @@ import jp.minecraftuser.ecodragon.timer.WorldTimer;
 import jp.minecraftuser.ecoframework.ListenerFrame;
 import jp.minecraftuser.ecoframework.TimerFrame;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Difficulty;
+import org.bukkit.GameRule;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.WorldBorder;
-import org.bukkit.attribute.Attribute;
-import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Egg;
 import org.bukkit.entity.EnderCrystal;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.HumanEntity;
-import org.bukkit.entity.LingeringPotion;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Snowball;
 import org.bukkit.entity.ThrownPotion;
+import org.bukkit.entity.Warden;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.Action;
@@ -48,6 +48,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.event.entity.LingeringPotionSplashEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.entity.PotionSplashEvent;
@@ -61,15 +62,16 @@ import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.potion.PotionType;
 import org.bukkit.projectiles.ProjectileSource;
+import org.bukkit.scoreboard.Criteria;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
-import org.bukkit.scoreboard.Team;
 
 /**
  * ランキング関連イベント処理リスナークラス
@@ -108,14 +110,14 @@ public class RankingListener extends ListenerFrame {
      * プレイヤーログイン後イベント処理
      * @param event イベント情報
      */
-    @EventHandler
+    @EventHandler(priority = EventPriority.LOW)
     public void PlayerJoin(PlayerJoinEvent event)
     {
         Player p = event.getPlayer();
 
         // エンドラ戦中であればスコアボード設定する
         if (curWorld != null) {
-            addScoreboard(p);
+            setScoreboard(p, true);
             if (curWorld.equals(p.getWorld())) {
                 // 透明化が掛かっていたら解除する
                 for (PotionEffect pe : p.getActivePotionEffects()) {
@@ -124,10 +126,32 @@ public class RankingListener extends ListenerFrame {
                     }
                 }
             }
+            sendPluginMessage(plg, p, "強化エンダードラゴン戦が開催されています");
+            sendPluginMessage(plg, p, "あと " + round + " 回エンダードラゴンを討伐するとエンドゲートウェイの転送が開放されます");
+            sendPluginMessage(plg, p, "エンドゲートウェイの開放は個人ごとに (ランキング順位 * 30秒) のインターバルを要します");
+            this.plg.getServer().dispatchCommand(this.plg.getServer().getConsoleSender(), "tellraw " + p.getName() + " [\"\",{\"text\":\"\\u30e9\\u30f3\\u30ad\\u30f3\\u30b0\\u78ba\\u8a8d\\u306f \"},{\"text\":\"/ecd rank\",\"bold\":true,\"underlined\":true,\"color\":\"yellow\",\"clickEvent\":{\"action\":\"run_command\",\"value\":\"/ecd rank\"}}]");
+            this.plg.getServer().dispatchCommand(this.plg.getServer().getConsoleSender(), "tellraw " + p.getName() + " [\"\",{\"text\":\"\\u30b9\\u30b3\\u30a2\\u30dc\\u30fc\\u30c9\\u306e\\u975e\\u8868\\u793a\\u306f \"},{\"text\":\"/ecd rank false\",\"bold\":true,\"underlined\":true,\"color\":\"yellow\",\"clickEvent\":{\"action\":\"run_command\",\"value\":\"/ecd rank false\"}}]");
         }
 
         // エンドラ戦が未実行の場合は開始処理を走らせる（最初の一人がエンドに入らないとエンドラが検出できない）
         startEnderDragonRanking(p.getWorld(), false);
+    }
+
+    /**
+     * Entityテレポートイベント処理
+     * @param event イベント情報
+     */
+    @EventHandler
+    public void EntityPortalEvent(EntityPortalEvent event)
+    {
+        // エンドラ戦対象ワールドでない場合は何もしない
+        String prefix = plg.getDefaultConfig().getString("worldprefix");
+        if (!event.getFrom().getWorld().getName().toLowerCase().startsWith(prefix.toLowerCase())) return;
+
+        Entity e = event.getEntity();
+        if (e instanceof Warden) {
+            event.setCancelled(true);
+        }
     }
 
     /**
@@ -159,10 +183,19 @@ public class RankingListener extends ListenerFrame {
 
         // エンドラ戦対象ワールドでない場合は何もしない
         String prefix = plg.getDefaultConfig().getString("worldprefix");
-        if (!p.getWorld().getName().toLowerCase().startsWith(prefix.toLowerCase())) return;
-        
+        World w = p.getWorld();
+        if (!w.getName().toLowerCase().startsWith(prefix.toLowerCase())) return;
+
         // インターバルテーブルが空の場合には何もしない
-        if (intervalList.isEmpty()) return;
+        if (intervalList.isEmpty()) {
+            // ワールド境界の状態をチェック(直径1000の場合、未拡張なので抑止する)
+            WorldBorder wb = w.getWorldBorder();
+            if (wb.getSize() == 1000) {
+                sendPluginMessage(plg, p, "強化エンダードラゴンが規定回数攻略されるまでエンドゲートウェイの使用は抑止されます");
+                event.setCancelled(true);
+            }
+            return;
+        }
         
         // 最後のインターバル時刻を超えていたら強制解除
         Date now = new Date();
@@ -383,9 +416,10 @@ public class RankingListener extends ListenerFrame {
         if (b != null) {
             if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
                 if (event.getItem() != null) {
-                    // ホッパートロッコ禁止
-                    if (event.getItem().getType() == Material.EXPLOSIVE_MINECART) {
-                        if ((b.getType() == Material.RAILS) ||
+                    // トロッコ禁止
+                    if ((event.getItem().getType() == Material.TNT_MINECART) ||
+                        (event.getItem().getType() == Material.HOPPER_MINECART)) {
+                        if ((b.getType() == Material.RAIL) ||
                             (b.getType() == Material.POWERED_RAIL) ||
                             (b.getType() == Material.DETECTOR_RAIL) ||
                             (b.getType() == Material.ACTIVATOR_RAIL)){
@@ -476,16 +510,16 @@ public class RankingListener extends ListenerFrame {
                 if (ps instanceof Player) {
                     p = (Player) ps;
                 }
-//            } else if (event.getDamager().getType() == EntityType.EGG) {
-//                ProjectileSource ps = (ProjectileSource) ((Egg)event.getDamager()).getShooter();
-//                if (ps instanceof Player) {
-//                    p = (Player) ps;
-//                }
-//            } else if (event.getDamager().getType() == EntityType.SNOWBALL) {
-//                ProjectileSource ps = (ProjectileSource) ((Snowball)event.getDamager()).getShooter();
-//                if (ps instanceof Player) {
-//                    p = (Player) ps;
-//                }
+            } else if (event.getDamager().getType() == EntityType.EGG) {
+                ProjectileSource ps = (ProjectileSource) ((Egg)event.getDamager()).getShooter();
+                if (ps instanceof Player) {
+                    p = (Player) ps;
+                }
+            } else if (event.getDamager().getType() == EntityType.SNOWBALL) {
+                ProjectileSource ps = (ProjectileSource) ((Snowball)event.getDamager()).getShooter();
+                if (ps instanceof Player) {
+                    p = (Player) ps;
+                }
             } else {
                 return;
             }
@@ -544,12 +578,12 @@ public class RankingListener extends ListenerFrame {
             case HOPPER:
                 boolean hit = false;
                 if (event.getCurrentItem() != null) {
-                    if (event.getCurrentItem().getType() == Material.EXPLOSIVE_MINECART) {
+                    if (event.getCurrentItem().getType() == Material.TNT_MINECART) {
                         hit = true;
                     }
                 }
                 if (event.getCursor() != null) {
-                    if (event.getCursor().getType() == Material.EXPLOSIVE_MINECART) {
+                    if (event.getCursor().getType() == Material.TNT_MINECART) {
                         hit = true;
                     }
                 }
@@ -557,6 +591,7 @@ public class RankingListener extends ListenerFrame {
                     plg.getServer().getPlayer(event.getWhoClicked().getName()).sendMessage("[" + plg.getName() + "] エンドラ戦中のTNTマインカートの操作は禁止されています");
                     event.setCancelled(true);
                 }
+            default:
         }
     }
 
@@ -662,7 +697,8 @@ public class RankingListener extends ListenerFrame {
      */
     @EventHandler(priority = EventPriority.LOWEST)
     public void LingeringPotionSplashEvent(LingeringPotionSplashEvent event) {
-        LingeringPotion p = event.getEntity();
+        
+        ThrownPotion p = event.getEntity();
         if (p.getWorld().equals(curWorld)) {
             for (PotionEffect po : p.getEffects()) {
                 if (po.getType() == PotionEffectType.INVISIBILITY) {
@@ -732,17 +768,21 @@ public class RankingListener extends ListenerFrame {
         if (round == conf.getInt("roundmax")) {
             plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f 強化エンダードラゴン戦が開始されました");
             plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f あと " + round + " 回エンダードラゴンを討伐するとエンドゲートウェイの転送が開放されます。");
-            plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f エンドゲートウェイの開放は個人ごとに (ランキング順位 * 10秒) のインターバルを要します");
+            plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f エンドゲートウェイの開放は個人ごとに (ランキング順位 * 30秒) のインターバルを要します");
+            for (Player pl : plg.getServer().getOnlinePlayers()) {
+                this.plg.getServer().dispatchCommand(this.plg.getServer().getConsoleSender(), "tellraw " + pl.getName() + " [\"\",{\"text\":\"\\u30e9\\u30f3\\u30ad\\u30f3\\u30b0\\u78ba\\u8a8d\\u306f \"},{\"text\":\"/ecd rank\",\"bold\":true,\"underlined\":true,\"color\":\"yellow\",\"clickEvent\":{\"action\":\"run_command\",\"value\":\"/ecd rank\"}}]");
+                this.plg.getServer().dispatchCommand(this.plg.getServer().getConsoleSender(), "tellraw " + pl.getName() + " [\"\",{\"text\":\"\\u30b9\\u30b3\\u30a2\\u30dc\\u30fc\\u30c9\\u306e\\u975e\\u8868\\u793a\\u306f \"},{\"text\":\"/ecd rank false\",\"bold\":true,\"underlined\":true,\"color\":\"yellow\",\"clickEvent\":{\"action\":\"run_command\",\"value\":\"/ecd rank false\"}}]");
+            }
         } else if (round != 0) {
             // ラウンド継続中の場合
             plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f あと " + round + " 回エンダードラゴンを討伐するとエンドゲートウェイの転送が開放されます。");
             plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f エンダードラゴンの復活は自動的には行われませんのでご注意ください");
-            plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f エンドゲートウェイの開放は個人ごとに (ランキング順位 * 10秒) のインターバルを要します");
+            plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f エンドゲートウェイの開放は個人ごとに (ランキング順位 * 30秒) のインターバルを要します");
         } else {
             // 最終ラウンド後の場合
             plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f 強化エンダードラゴン戦が終了しました");
             plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f エンドゲートウェイの転送が順次開放されます。");
-            plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f エンドゲートウェイの開放は個人ごとに (ランキング順位 * 10秒) のインターバルを要します");
+            plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f エンドゲートウェイの開放は個人ごとに (ランキング順位 * 30秒) のインターバルを要します");
         }
     }
 
@@ -765,7 +805,7 @@ public class RankingListener extends ListenerFrame {
             for (int rank = 1; rank <= entries.size(); rank++) {
                 EcoDragonUser rankUser = (EcoDragonUser)((Map.Entry)entries.get(rank - 1)).getValue();
                 totalPoint += rankUser.getPoint();
-                lastInterval = cur + rank * 10000;
+                lastInterval = cur + rank * 30000;
                 intervalList.put(rankUser.getPlayer(), lastInterval);
             }
             // 個々人のランキング表彰、アイテム進呈
@@ -836,16 +876,17 @@ public class RankingListener extends ListenerFrame {
      * @param name 表彰者名
      * @return 賞状インスタンス
      */
-    private ItemStack makeCertificate(String name) {
+    public ItemStack makeCertificate(String name) {
         SimpleDateFormat sdf1 = new SimpleDateFormat("[yyyy/MM/dd]");
         SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy年MM月dd日 HH時mm分ss秒");
         ItemStack item = new ItemStack(Material.WRITTEN_BOOK);
+        Date date = new Date();
         BookMeta meta = (BookMeta)item.getItemMeta();
         meta.setAuthor(cerConf.getString("author"));
-        meta.setDisplayName(cerConf.getString(sdf1+"name"));
-        meta.setTitle(cerConf.getString("sdf1+title"));
+        meta.setDisplayName(sdf1.format(date) + cerConf.getString("name"));
+        meta.setTitle(sdf1.format(date) + cerConf.getString("title"));
         for (String page: cerConf.getArrayList("pages")) {
-            meta.addPage(page + "\n\n§c§l成績 1 位 プレイヤー[" + name + "]§r\n" + sdf2.format(new Date()));
+            meta.addPage(page + "\n\n§c§l成績 1 位 プレイヤー[" + name + "]§r\n" + sdf2.format(date));
         }
         item.setItemMeta(meta);
         return item;
@@ -869,20 +910,35 @@ public class RankingListener extends ListenerFrame {
         ItemStack i = null;
         if (item == Material.AIR) {
             ArrayList<ItemStack> list = new ArrayList<>();
-            list.add(new ItemStack(Material.GRASS, 64));
-            list.add(new ItemStack(Material.LAPIS_BLOCK));
-            list.add(new ItemStack(Material.WEB, 32));
-            list.add(new ItemStack(Material.RED_ROSE, 10));
-            list.add(new ItemStack(Material.BROWN_MUSHROOM, 10));
-            list.add(new ItemStack(Material.RED_MUSHROOM, 10));
-            list.add(new ItemStack(Material.MOSSY_COBBLESTONE, 64));
-            list.add(new ItemStack(Material.DIAMOND_BLOCK, 3));
-            list.add(new ItemStack(Material.WORKBENCH));
-            list.add(new ItemStack(Material.SOIL, 64));
-            list.add(new ItemStack(Material.FLINT, 64));
-            list.add(new ItemStack(Material.EMERALD_BLOCK, 3));
-            list.add(new ItemStack(Material.GOLDEN_APPLE, 3));
+            list.add(new ItemStack(Material.ANCIENT_DEBRIS, 1));
+            list.add(new ItemStack(Material.BEEHIVE, 3));
+            list.add(new ItemStack(Material.BIG_DRIPLEAF, 16));
             list.add(new ItemStack(Material.BONE_BLOCK, 16));
+            list.add(new ItemStack(Material.BONE_BLOCK, 16));
+            list.add(new ItemStack(Material.BOOKSHELF, 16));
+            list.add(new ItemStack(Material.BROWN_MUSHROOM, 10));
+            list.add(new ItemStack(Material.CANDLE, 32));
+            list.add(new ItemStack(Material.COBWEB, 32));
+            list.add(new ItemStack(Material.CRAFTING_TABLE));
+            list.add(new ItemStack(Material.DIAMOND_BLOCK, 3));
+            ItemStack rod = new ItemStack(Material.FISHING_ROD, 1);
+            rod.addUnsafeEnchantment(Enchantment.LUCK, 5);
+            rod.setData(null);
+            ItemMeta rodData = rod.getItemMeta();
+            rodData.setDisplayName("えこ釣り竿");
+            rod.setItemMeta(rodData);
+            list.add(rod);
+            list.add(new ItemStack(Material.EMERALD_BLOCK, 3));
+            list.add(new ItemStack(Material.FLINT, 64));
+            list.add(new ItemStack(Material.GOLDEN_APPLE, 3));
+            list.add(new ItemStack(Material.GRASS_BLOCK, 64));
+            list.add(new ItemStack(Material.HAY_BLOCK, 32));
+            list.add(new ItemStack(Material.LIGHTNING_ROD, 32));
+            list.add(new ItemStack(Material.LAPIS_BLOCK));
+            list.add(new ItemStack(Material.MOSSY_COBBLESTONE, 64));
+            list.add(new ItemStack(Material.POPPY, 10));
+            list.add(new ItemStack(Material.RED_MUSHROOM, 10));
+            list.add(new ItemStack(Material.SOUL_SOIL, 64));
             i = list.get(new Random().nextInt(list.size()));
             p.sendMessage("§d[" + plg.getName() + "]§f 討伐参加賞アイテム ["+i.getType().name()+"] x " + i.getAmount() + " 獲得しました");
         } else {
@@ -936,7 +992,7 @@ public class RankingListener extends ListenerFrame {
             intervalList.clear();
             w.setDifficulty(Difficulty.HARD);
             w.setPVP(true);
-            w.setGameRuleValue("keepInventory", "true");
+            w.setGameRule(GameRule.KEEP_INVENTORY, true);
             
             // タイマ起動
             for (TimerFrame tm : pvptimer.values()) {
@@ -991,10 +1047,10 @@ public class RankingListener extends ListenerFrame {
 
         // 設定戻し
         WorldBorder bd = curWorld.getWorldBorder();
-        bd.setDamageAmount(0);
-        bd.setDamageBuffer(0);
-        bd.setWarningDistance(0);
-        bd.setWarningTime(0);
+        bd.setDamageAmount(2);
+        bd.setDamageBuffer(10);
+        bd.setWarningDistance(20);
+        bd.setWarningTime(10);
         bd.setSize(4000, 100);
         curWorld.setPVP(false);
         for (TimerFrame tm : pvptimer.values()) {
@@ -1009,7 +1065,7 @@ public class RankingListener extends ListenerFrame {
         e = new EndEventTimer(plg, "400 tick後に World:" + curWorld.getName() + " のエンドラ戦後処理を開始します"); e.runTaskLater(plg, 800); evtimer.add(e);
         e = new EndEventTimer(plg, "200 tick後に World:" + curWorld.getName() + " のエンドラ戦後処理を開始します"); e.runTaskLater(plg, 1000); evtimer.add(e);
         e = new EndEventTimer(plg, "World:" + curWorld.getName() + " のKeepInventoryを解除しました。", curWorld); e.runTaskLater(plg, 1200); evtimer.add(e);
-        
+    
         // スコアボード破棄
         e = new EndEventTimer(plg, "ランキングスコアボードを破棄しました。", board, dmgobj); e.runTaskLater(plg, 1200); evtimer.add(e);
 
@@ -1028,21 +1084,27 @@ public class RankingListener extends ListenerFrame {
             dmgobj.unregister();
             dmgobj = null;
         }
-        dmgobj = board.registerNewObjective("damage", "dummy");
-        dmgobj.setDisplayName("エンドラダメージランキング");
-        dmgobj.setDisplaySlot(DisplaySlot.PLAYER_LIST);
+        dmgobj = board.registerNewObjective("damage", Criteria.TEAM_KILL_YELLOW, "dummy");
+        dmgobj.setDisplayName("エンドラ討伐貢献度");
+        dmgobj.setDisplaySlot(DisplaySlot.SIDEBAR);
         
         for (Player p: plg.getServer().getOnlinePlayers()) {
-            addScoreboard(p);
+            setScoreboard(p, true);
         }
     }
 
     /**
      * スコアボード設定処理
      */
-    private void addScoreboard(Player p) {
+    public void setScoreboard(Player p, boolean flag) {
         if (p.hasPermission("ecodragon.board")) {
-            p.setScoreboard(board);
+            if (flag) {
+                p.setScoreboard(board);
+            } else {
+                if (p.getScoreboard().equals(board)) {
+                    p.setScoreboard(plg.getServer().getScoreboardManager().getMainScoreboard());
+                }
+            }
         }
     }
 
@@ -1068,16 +1130,12 @@ public class RankingListener extends ListenerFrame {
         // エンドラチェック
         log.info("EnderDragonCheck["+w.getName()+"]");
         for (Entity ent : w.getEntities()) {
-            log.info("Check["+ent.getName()+"]");
             if (ent.getType() == EntityType.ENDER_DRAGON) {
-                log.info("hit:EnderDragon");
                 return true;
             }
         }
         for (LivingEntity ent : w.getLivingEntities()) {
-            log.info("LivingCheck["+ent.getName()+"]");
             if (ent.getType() == EntityType.ENDER_DRAGON) {
-                log.info("hit:EnderDragon");
                 return true;
             }
         }
@@ -1090,7 +1148,8 @@ public class RankingListener extends ListenerFrame {
      * ランキングデータ取得処理
      * @return 
      */
-    public ArrayList getRankList() {
+    @SuppressWarnings("unchecked")
+	public ArrayList getRankList() {
         ArrayList entries = new ArrayList(ranking.entrySet());
         Collections.sort(entries, new Comparator(){
             public int compare(Object obj1, Object obj2){
@@ -1191,7 +1250,7 @@ public class RankingListener extends ListenerFrame {
     
     public void refreshScoreBoard() {
         for (EcoDragonUser rankUser : ranking.values()) {
-            dmgobj.getScore(rankUser.getPlayer()).setScore(rankUser.getPoint());
+            dmgobj.getScore(rankUser.getPlayer().getName()).setScore(rankUser.getPoint());
         }
     }
 

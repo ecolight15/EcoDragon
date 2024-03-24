@@ -2,7 +2,37 @@ name: EcoDragon
 main: jp.minecraftuser.ecodragon.EcoDragon
 version: ${project.version}
 depend: [EcoFramework]
+api-version: 1.20
 commands:
   ecd:
     description: ecd command.
     usage: /<command> option
+    permission: ecodragon
+  ecd book:
+    description: ecd book command.
+    usage: /<command> option
+    permission: ecodragon.book
+  ecd clear:
+    description: ecd clear is clear mob command.
+    usage: /<command> option
+    permission: ecodragon.clear
+  ecd end:
+    description: ecd end command.
+    usage: /<command> option
+    permission: ecodragon.end
+  ecd pvp:
+    description: ecd pvp command.
+    usage: /<command> option
+    permission: ecodragon.pvp
+  ecd rank:
+    description: ecd rank command.
+    usage: /<command> option
+    permission: ecodragon.rank
+  ecd reload:
+    description: ecd reload command.
+    usage: /<command> option
+    permission: ecodragon.reload
+  ecd start:
+    description: ecd start command.
+    usage: /<command> option
+    permission: ecodragon.start

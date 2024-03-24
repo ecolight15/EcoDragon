@@ -13,8 +13,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
-import org.bukkit.event.player.PlayerPickupItemEvent;
 
 /**
  * プレイヤーイベント処理リスナークラス
@@ -44,8 +44,9 @@ public class DragonEggListener extends ListenerFrame {
 
         // 設置者を記録
         Block b = event.getBlock();
-        if ((b.getType() == Material.PISTON_BASE) || b.getType() == Material.PISTON_STICKY_BASE) piston = pl;
-        if (b.getType() == Material.REDSTONE_TORCH_ON) torch = pl;
+        if ((b.getType() == Material.PISTON) || (b.getType() == Material.STICKY_PISTON) ||
+            (b.getType() == Material.MOVING_PISTON) || b.getType() == Material.PISTON_HEAD) piston = pl;
+        if ((b.getType() == Material.REDSTONE_TORCH) || (b.getType() == Material.REDSTONE_WALL_TORCH) || (b.getType() == Material.REDSTONE_BLOCK)) torch = pl;
     }
 
     /**
@@ -53,14 +54,17 @@ public class DragonEggListener extends ListenerFrame {
      * @param event イベント情報
      */
     @EventHandler
-    public void PlayerPickupItem(PlayerPickupItemEvent event)
+    public void EntityPickupItem(EntityPickupItemEvent event)
     {
+        if ( ! (event.getEntity() instanceof Player)) {
+            return;
+        }
         // エンドラ卵以外は何もしない
         Item pickup = event.getItem();
         if (pickup.getItemStack().getType() != Material.DRAGON_EGG) return;
 
         // エンドラ戦対象ワールド以外では何もしない
-        Player pl = event.getPlayer();
+        Player pl = (Player) event.getEntity();
         String prefix = plg.getDefaultConfig().getString("worldprefix");
         if (!pl.getWorld().getName().toLowerCase().startsWith(prefix.toLowerCase())) return;
 

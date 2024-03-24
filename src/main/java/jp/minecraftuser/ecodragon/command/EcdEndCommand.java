@@ -41,7 +41,7 @@ public class EcdEndCommand extends CommandFrame {
      */
     @Override
     public boolean worker(CommandSender sender, String[] args) {
-        RankingListener lisn = (RankingListener) plg.getPluginListerner("ranking");
+        RankingListener lisn = (RankingListener) plg.getPluginListener("ranking");
         if (!lisn.abortEnderDragonRanking()) {
             sender.sendMessage("[" + plg.getName() + "] エンドラ戦が終了できませんでした。");
         }

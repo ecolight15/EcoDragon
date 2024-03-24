@@ -22,7 +22,7 @@ public class LightWeightListener extends ListenerFrame {
      */
     public LightWeightListener(PluginFrame plg_, String name_) {
         super(plg_, name_);
-        ranking = (RankingListener) plg.getPluginListerner("ranking");
+        ranking = (RankingListener) plg.getPluginListener("ranking");
     }
     @EventHandler(priority = EventPriority.LOWEST)
     public void CreatureSpawn(CreatureSpawnEvent event) {
