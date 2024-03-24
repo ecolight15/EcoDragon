@@ -820,20 +820,36 @@ public class RankingListener extends ListenerFrame {
                 rankUser.setRanking(true);
                 switch (rank) {
                     case 1:
-                        lv = 30 * 4;
-                        presentItem(rankUser.getPlayer(),Material.DIAMOND_BLOCK, 5);
-                        presentItem(rankUser.getPlayer(), Material.EMERALD_BLOCK, 3);
-                        presentItem(rankUser.getPlayer(), makeCertificate(rankUser.getPlayer().getName()));
+                        // どうもリログすると取ってあったPlayerインスタンスが無効化されているような雰囲気なので、名前で探し直して賞品付与する
+                        for (Player work : plg.getServer().getOnlinePlayers()) {
+                            if (rankUser.getPlayer().getName().equals(work.getName())) {
+                                lv = 30 * 4;
+                                presentItem(work.getPlayer(), Material.DIAMOND_BLOCK, 5);
+                                presentItem(work.getPlayer(), Material.EMERALD_BLOCK, 3);
+                                presentItem(work.getPlayer(), makeCertificate(rankUser.getPlayer().getName()));
+                                break;
+                            }
+                        }
                         break;
                     case 2:
-                        lv = 30 * 3;
-                        presentItem(rankUser.getPlayer(), Material.DIAMOND_BLOCK, 4);
-                        presentItem(rankUser.getPlayer(), Material.EMERALD_BLOCK, 3);
+                        for (Player work : plg.getServer().getOnlinePlayers()) {
+                            if (rankUser.getPlayer().getName().equals(work.getName())) {
+                                lv = 30 * 3;
+                                presentItem(work.getPlayer(), Material.DIAMOND_BLOCK, 4);
+                                presentItem(work.getPlayer(), Material.EMERALD_BLOCK, 3);
+                                break;
+                            }
+                        }
                         break;
                     case 3:
-                        lv = 30 * 2;
-                        presentItem(rankUser.getPlayer(), Material.DIAMOND_BLOCK, 3);
-                        presentItem(rankUser.getPlayer(), Material.EMERALD_BLOCK, 1);
+                        for (Player work : plg.getServer().getOnlinePlayers()) {
+                            if (rankUser.getPlayer().getName().equals(work.getName())) {
+                                lv = 30 * 2;
+                                presentItem(work.getPlayer(), Material.DIAMOND_BLOCK, 3);
+                                presentItem(work.getPlayer(), Material.EMERALD_BLOCK, 1);
+                                break;
+                            }
+                        }
                         break;
                     default:
                         rankUser.setRanking(false);
