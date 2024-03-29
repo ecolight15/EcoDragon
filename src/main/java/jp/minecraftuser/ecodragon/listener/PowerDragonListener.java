@@ -1,28 +1,17 @@
 
 package jp.minecraftuser.ecodragon.listener;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+
 import jp.minecraftuser.ecoframework.ListenerFrame;
 import jp.minecraftuser.ecoframework.PluginFrame;
-import org.bukkit.GameMode;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.enchantments.Enchantment;
-import org.bukkit.entity.CaveSpider;
-import org.bukkit.entity.Creeper;
-import org.bukkit.entity.EnderDragon;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
-import org.bukkit.entity.Stray;
-import org.bukkit.entity.Warden;
-import org.bukkit.entity.WitherSkeleton;
-import org.bukkit.entity.Zombie;
+import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
@@ -32,6 +21,7 @@ import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.projectiles.ProjectileSource;
 
 /**
  * エンドラ戦調整関連イベント処理リスナークラス
@@ -154,6 +144,7 @@ public class PowerDragonListener extends ListenerFrame {
         }
 
     }
+
     @EventHandler(priority = EventPriority.LOWEST)
     public void EntityTargetLivingEntity(EntityTargetLivingEntityEvent event) {
         if (!ranking.isRanking()) return;
@@ -177,7 +168,7 @@ public class PowerDragonListener extends ListenerFrame {
             event.setCancelled(true);
             return;
         }
-        
+
         // プレイヤーの雷ダメージで地形を粉砕
         playerLightningDamageExplosion(event);
 
@@ -198,17 +189,25 @@ public class PowerDragonListener extends ListenerFrame {
 
         /* エンダードラゴン強化用ロジック */
         if (event.getEntityType() == EntityType.ENDER_DRAGON &&
-           ((event.getCause() == EntityDamageEvent.DamageCause.PROJECTILE) || (event.getCause() == EntityDamageEvent.DamageCause.ENTITY_ATTACK))){
+                ((event.getCause() == EntityDamageEvent.DamageCause.PROJECTILE) || (event.getCause() == EntityDamageEvent.DamageCause.ENTITY_ATTACK))) {
 
             Random rand = new Random();
-            EnderDragon dra = (EnderDragon)event.getEntity(); 
+            EnderDragon dra = (EnderDragon) event.getEntity();
+
+            List<Player> survivalPlayers = new ArrayList<>();
+            //サバイバルプレイヤーのリストを作成
+            event.getEntity().getWorld().getPlayers().forEach(p -> {
+                if (p.getGameMode() != GameMode.CREATIVE) {
+                    survivalPlayers.add(p);
+                }
+            });
 
             lasthp = dra.getHealth();
             // HPの割合算出
-            int hp = ((int)dra.getHealth() * 100) / (int)dra.getMaxHealth();
+            int hp = ((int) dra.getHealth() * 100) / (int) dra.getMaxHealth();
             //m.info("hp:" + hp + " health:" + dra.getHealth() + " max:" + dra.getMaxHealth());
-            int mobcount = 0;
-            
+
+
 //            // 残存HP50%メッセージ
 //            if ((bossdamage == false) && (hp <= 20)) {
 //                for (Player p: dra.getWorld().getPlayers()) {
@@ -221,126 +220,137 @@ public class PowerDragonListener extends ListenerFrame {
 //                bossdamage = true;
 //            }
 
-            // プレイヤーリストと初期ターゲット取得
-            List<Player> plist = event.getEntity().getWorld().getPlayers();
-            int target = rand.nextInt(plist.size());
-            Player tgtp = event.getEntity().getWorld().getPlayers().get(target);
+            // ドラゴンはHP50%以下の場合、遠距離武器を3/5の確立で無効化し、イベントをキャンセルする。
+            if (event.getCause() == EntityDamageEvent.DamageCause.PROJECTILE) {
+                if ((hp < 50) && (rand.nextInt(5) > 1)) {
+                    EntityDamageByEntityEvent entityDamageByEntityEvent = (EntityDamageByEntityEvent) event;
+                    ProjectileSource attackEntity = null;
 
-            // 1/20 の確立でドラゴンをランダムプレイヤー下の位置にテレポート
-            if (rand.nextInt(20) == 1) {
-                Location draloc = tgtp.getLocation();
-                draloc.setY(draloc.getY() - 5);
-                if (draloc.getBlock().getType() != Material.OBSIDIAN) {
-                    if (draloc.getY() >= 10) {
-                        dra.teleport(draloc);
+                    switch (entityDamageByEntityEvent.getDamager().getType()) {
+                        case ARROW:
+                            attackEntity = ((Arrow) entityDamageByEntityEvent.getDamager()).getShooter();
+                            break;
+                        case SNOWBALL:
+                            attackEntity = ((Snowball) entityDamageByEntityEvent.getDamager()).getShooter();
+                            break;
+                        case EGG:
+                            attackEntity = ((Egg) entityDamageByEntityEvent.getDamager()).getShooter();
+                            break;
+                        case SPLASH_POTION:
+                            attackEntity = ((ThrownPotion) entityDamageByEntityEvent.getDamager()).getShooter();
+                            break;
                     }
-                }
-            }
-            // 1/10 の確立でランダムプレイヤーの位置にウィザー召還
-            if (rand.nextInt(10) == 1) {
-                Location witherloc = tgtp.getLocation();
-                witherloc.setY(witherloc.getY() + 5);
-                if (witherloc.getY() <= 60) witherloc.setY(70);
-                event.getEntity().getWorld().spawnEntity(witherloc, EntityType.WITHER);
-            }
-
-            // エンドラが特定HP未満の場合、プレイヤーに落雷させる
-            int tgtcnt = 0;
-            if (hp < 90) {tgtcnt = 1;}
-            if (hp < 50) {tgtcnt = 3;}
-            if (hp < 20) {tgtcnt = 5;}
-            if (hp < 10) {tgtcnt = 7;}
-            List<Player> players = event.getEntity().getWorld().getPlayers();
-            boolean isOnlyCreativeUser = true;
-            for (int loop = 0; loop < tgtcnt; loop++) {
-                // ランダムプレイヤー算出
-                target = rand.nextInt(plist.size());
-                tgtp = players.get(target);
-
-                // creativeユーザーは除外
-                if (tgtp.getGameMode() == GameMode.CREATIVE) {
-                    boolean exitSurvivalPlayer = false;
-                    for(Player player:players){
-                        if(player.getGameMode() == GameMode.SURVIVAL){
-                            exitSurvivalPlayer = true;
-                        }
+                    if (attackEntity instanceof Player) {
+                        Player attackPlayer = (Player) attackEntity;
+                        //ダメージを弾いた音を流す
+                        attackPlayer.playSound(attackPlayer.getLocation(), Sound.BLOCK_ANVIL_PLACE, 1, 0.1f);
                     }
-                    if(!exitSurvivalPlayer){
-                        break;
-                    }
-                    tgtcnt++;
-                    continue;
-                }
-                // プレイヤーの居る位置が高さ60以下だったら対象外
-                if (tgtp.getLocation().getY() <= 60) {
-                    tgtcnt++;
-                    if (tgtcnt >= 20) { // 最大試行20回
-                        break;
-                    }
-                    continue;
-                }
-                if (hp > 0) {
-                    dra.getWorld().strikeLightning(tgtp.getLocation());
-                }
-                // 再選が規定回数以上になった場合は強制的に終わる
-                if (tgtcnt >= 50) {
-                    break;
+                    event.setCancelled(true);
+                    return;
                 }
             }
 
-            // 村人投下
+            // 魔女を投下
             event.getEntity().getWorld().spawnEntity(event.getEntity().getLocation(), EntityType.WITCH);
-            
+
             // ドラゴンに落雷
             if (hp < 20) {
                 dra.getWorld().strikeLightning(dra.getLocation());
             }
-            
-            // ドラゴンはHP50%以下の場合、遠距離武器を3/5の確立で無効化する
-            if (event.getCause() == EntityDamageEvent.DamageCause.PROJECTILE) {
-                if ((hp < 50) && (rand.nextInt(5) > 1))  {
-                    event.setCancelled(true);
-                    return;
-                } 
-            }
 
-            // ドラゴンはHPの残量に応じてMOBを投下する
-            if (hp > 80) {mobcount = 2;         // 80%以上の場合のMOB量
-            } else if (hp > 60) {mobcount = 2;  // 60%以上の場合のMOB量
-            } else if (hp > 40) {mobcount = 2;  // 40%以上の場合のMOB量
-            } else if (hp > 20) {mobcount = 1;  // 20%以上の場合のMOB量
-            } else {mobcount = 5;}              // 19%以下の場合のMOB量
-            for (int cnt = 0; cnt < mobcount; cnt++) {
-                // プレイヤーが存在しない場合はMOB投下を終了する
-                if (plist.size() <= 0) break;
-                // ランダムプレイヤーを算出
-                target = rand.nextInt(plist.size());
-                tgtp = event.getEntity().getWorld().getPlayers().get(target);
 
-                // MOB召還
-                if (hp > 80) { // HPが80%以上の場合のMOB
-                    CaveSpider ent = (CaveSpider)event.getEntity().getWorld().spawnEntity(event.getEntity().getLocation(),
-                            EntityType.CAVE_SPIDER);
-                    ent.setTarget(tgtp);
+            if (!survivalPlayers.isEmpty()) {
+                // プレイヤーリストと初期ターゲット取得
+                Player targetPlayer = survivalPlayers.get(rand.nextInt(survivalPlayers.size()));
+
+                // 1/20 の確立でドラゴンをランダムプレイヤー下の位置にテレポート
+                if (rand.nextInt(20) == 1) {
+                    Location draloc = targetPlayer.getLocation();
+                    draloc.setY(draloc.getY() - 5);
+                    if (draloc.getBlock().getType() != Material.OBSIDIAN) {
+                        if (draloc.getY() >= 10) {
+                            dra.teleport(draloc);
+                        }
+                    }
                 }
-                else if (hp > 60) { // HPが60%以上の場合のMOB
-                    Stray ent = spawnSkeleton(event.getEntity());
-                    ent.setTarget(tgtp);
+                // 1/10 の確立でランダムプレイヤーの位置にウィザー召還
+                if (rand.nextInt(10) == 1) {
+                    Location witherloc = targetPlayer.getLocation();
+                    witherloc.setY(witherloc.getY() + 5);
+                    if (witherloc.getY() <= 60) witherloc.setY(70);
+                    event.getEntity().getWorld().spawnEntity(witherloc, EntityType.WITHER);
                 }
-                else if (hp > 40) { // HPが40%以上の場合のMOB
-                    Zombie ent = spawnZombie(event.getEntity());
-                    ent.setTarget(tgtp);
+
+                // エンドラが特定HP未満の場合、プレイヤーに落雷させる
+                int tgtcnt = 0;
+                if (hp < 90) {
+                    tgtcnt = 1;
                 }
-                else if (hp > 20) { // HPが20%以上の場合のMOB
-                    WitherSkeleton ent = spawnWitherSkeleton(event.getEntity());
-                    ent.setTarget(tgtp);
+                if (hp < 50) {
+                    tgtcnt = 3;
                 }
-                else {              // HPが19%以下の場合のMOB
-                    Creeper ent = (Creeper)event.getEntity().getWorld().spawnEntity(event.getEntity().getLocation(),
-                            EntityType.CREEPER);
-                    AttributeInstance attr = ent.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED);
-                    attr.setBaseValue(attr.getBaseValue() * 2);
-                    ent.setTarget(tgtp);
+                if (hp < 20) {
+                    tgtcnt = 5;
+                }
+                if (hp < 10) {
+                    tgtcnt = 7;
+                }
+
+                for (int loop = 0; loop < tgtcnt; loop++) {
+                    // ランダムプレイヤー算出
+                    Player lightnigTargetPlayer = survivalPlayers.get(rand.nextInt(survivalPlayers.size()));
+
+                    // プレイヤーの居る位置が高さ60以下だったら対象外
+                    if (lightnigTargetPlayer.getLocation().getY() <= 60) {
+                        tgtcnt++;
+                        if (tgtcnt >= 20) { // 最大試行20回
+                            break;
+                        }
+                        continue;
+                    }
+                    if (hp > 0) {
+                        dra.getWorld().strikeLightning(lightnigTargetPlayer.getLocation());
+                    }
+                }
+                int mobcount = 0;
+                // ドラゴンはHPの残量に応じてMOBを投下する
+                if (hp > 80) {
+                    mobcount = 2;   // 80%以上の場合のMOB量
+                } else if (hp > 60) {
+                    mobcount = 2;   // 60%以上の場合のMOB量
+                } else if (hp > 40) {
+                    mobcount = 2;   // 40%以上の場合のMOB量
+                } else if (hp > 20) {
+                    mobcount = 1;   // 20%以上の場合のMOB量
+                } else {
+                    mobcount = 5;   // 19%以下の場合のMOB量
+                }
+
+                for (int cnt = 0; cnt < mobcount; cnt++) {
+                    // ランダムプレイヤーを算出
+                    Player monsterTargetPlayer = survivalPlayers.get(rand.nextInt(survivalPlayers.size()));
+
+                    // MOB召還
+                    if (hp > 80) { // HPが80%以上の場合のMOB
+                        CaveSpider ent = (CaveSpider) event.getEntity().getWorld().spawnEntity(event.getEntity().getLocation(),
+                                EntityType.CAVE_SPIDER);
+                        ent.setTarget(monsterTargetPlayer);
+                    } else if (hp > 60) { // HPが60%以上の場合のMOB
+                        Stray ent = spawnSkeleton(event.getEntity());
+                        ent.setTarget(monsterTargetPlayer);
+                    } else if (hp > 40) { // HPが40%以上の場合のMOB
+                        Zombie ent = spawnZombie(event.getEntity());
+                        ent.setTarget(monsterTargetPlayer);
+                    } else if (hp > 20) { // HPが20%以上の場合のMOB
+                        WitherSkeleton ent = spawnWitherSkeleton(event.getEntity());
+                        ent.setTarget(monsterTargetPlayer);
+                    } else {              // HPが19%以下の場合のMOB
+                        Creeper ent = (Creeper) event.getEntity().getWorld().spawnEntity(event.getEntity().getLocation(),
+                                EntityType.CREEPER);
+                        AttributeInstance attr = ent.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED);
+                        attr.setBaseValue(attr.getBaseValue() * 2);
+                        ent.setTarget(monsterTargetPlayer);
+                    }
                 }
             }
         }
