@@ -4,7 +4,7 @@ package jp.minecraftuser.ecodragon.command;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import jp.minecraftuser.ecodragon.EcoDragonPlayer;
+import jp.minecraftuser.ecodragon.EcoDragonUser;
 import jp.minecraftuser.ecodragon.listener.RankingListener;
 import jp.minecraftuser.ecoframework.CommandFrame;
 import jp.minecraftuser.ecoframework.PluginFrame;
@@ -68,7 +68,7 @@ public class EcdRankCommand extends CommandFrame {
         log.info("list:"+entries.size());
         try {
             for (int rank = 1; rank <= entries.size(); rank++) {
-                EcoDragonPlayer user = (EcoDragonPlayer)((Map.Entry)entries.get(rank - 1)).getValue();
+                EcoDragonUser user = (EcoDragonUser)((Map.Entry)entries.get(rank - 1)).getValue();
                 log.info(rank+":"+user.toString());
                 if (rank == 1) {
                     sender.sendMessage("[" + plg.getName() + "] ");
