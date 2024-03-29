@@ -12,7 +12,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import jp.minecraftuser.ecodragon.EcoDragonUser;
+import java.util.UUID;
+
+import jp.minecraftuser.ecodragon.EcoDragonPlayer;
+import jp.minecraftuser.ecodragon.EcoDragonPlayerList;
 import jp.minecraftuser.ecoframework.PluginFrame;
 import jp.minecraftuser.ecodragon.config.CertificateConfig;
 import jp.minecraftuser.ecodragon.timer.EndEventTimer;
@@ -33,6 +36,7 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Egg;
 import org.bukkit.entity.EnderCrystal;
+import org.bukkit.entity.EnderPearl;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.HumanEntity;
@@ -40,6 +44,7 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Snowball;
 import org.bukkit.entity.ThrownPotion;
+import org.bukkit.entity.Trident;
 import org.bukkit.entity.Warden;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -77,14 +82,16 @@ import org.bukkit.scoreboard.Scoreboard;
  * ランキング関連イベント処理リスナークラス
  * - プレイヤーがテレポートした先 or ログイン先が登録プリフィックス名のワールド名
  * 　であればエンドラを検索しエンドラが存在する場合には開始処理を実施する。
+ *
  * @author ecolight
  */
 public class RankingListener extends ListenerFrame {
-    private static final HashMap<String, EcoDragonUser> ranking = new HashMap<>();
-    private static final HashMap<Player, Long> intervalList = new HashMap<>();
+
+    private EcoDragonPlayerList ecoDragonUserList;
+    private static final HashMap<UUID, Long> intervalList = new HashMap<>();
     private static final ArrayList<Block> existCrystal = new ArrayList<>();
     private static final ArrayList<TimerFrame> evtimer = new ArrayList<>();
-    private static final HashMap<Player, TimerFrame> pvptimer = new HashMap<>();
+    private static final HashMap<UUID, TimerFrame> pvptimer = new HashMap<>();
     private static CertificateConfig cerConf = null;
     private static World curWorld = null;
     private static int round = 0;
@@ -93,26 +100,27 @@ public class RankingListener extends ListenerFrame {
     private static long lastInterval = 0;
     private static WorldTimer timer = null;
     private static boolean first = false;
-    
+
     /**
      * コンストラクタ
-     * @param plg_ プラグインインスタンス
+     *
+     * @param plg_  プラグインインスタンス
      * @param name_ 名前
      */
     public RankingListener(PluginFrame plg_, String name_) {
         super(plg_, name_);
-        cerConf = (CertificateConfig)plg.getPluginConfig("certificate");
+        cerConf = (CertificateConfig) plg.getPluginConfig("certificate");
+        ecoDragonUserList = new EcoDragonPlayerList(plg_);
     }
 
-    
-    
+
     /**
      * プレイヤーログイン後イベント処理
+     *
      * @param event イベント情報
      */
     @EventHandler(priority = EventPriority.LOW)
-    public void PlayerJoin(PlayerJoinEvent event)
-    {
+    public void PlayerJoin(PlayerJoinEvent event) {
         Player p = event.getPlayer();
 
         // エンドラ戦中であればスコアボード設定する
@@ -139,11 +147,11 @@ public class RankingListener extends ListenerFrame {
 
     /**
      * Entityテレポートイベント処理
+     *
      * @param event イベント情報
      */
     @EventHandler
-    public void EntityPortalEvent(EntityPortalEvent event)
-    {
+    public void EntityPortalEvent(EntityPortalEvent event) {
         // エンドラ戦対象ワールドでない場合は何もしない
         String prefix = plg.getDefaultConfig().getString("worldprefix");
         if (!event.getFrom().getWorld().getName().toLowerCase().startsWith(prefix.toLowerCase())) return;
@@ -156,25 +164,25 @@ public class RankingListener extends ListenerFrame {
 
     /**
      * プレイヤーテレポートイベント処理
+     *
      * @param event イベント情報
      */
     @EventHandler
-    public void PlayerTeleport(PlayerTeleportEvent event)
-    {
+    public void PlayerTeleport(PlayerTeleportEvent event) {
         startEnderDragonRanking(event.getTo().getWorld(), false);
-        
-        Player p = event.getPlayer();
+
+        Player player = event.getPlayer();
         if (curWorld != null) {
             if (curWorld.equals(event.getTo().getWorld())) {
                 // 透明化が掛かっていたら解除する
-                for (PotionEffect pe : p.getActivePotionEffects()) {
+                for (PotionEffect pe : player.getActivePotionEffects()) {
                     if (pe.getType().equals(PotionEffectType.INVISIBILITY)) {
-                        p.removePotionEffect(PotionEffectType.INVISIBILITY);
+                        player.removePotionEffect(PotionEffectType.INVISIBILITY);
                     }
                 }
             }
         }
-        
+
         // エンドラランキング中の場合は、エンドゲートウェイの転送は抑止する。
         // エンドラランキング後はインターバルに応じて開放する
 
@@ -183,7 +191,7 @@ public class RankingListener extends ListenerFrame {
 
         // エンドラ戦対象ワールドでない場合は何もしない
         String prefix = plg.getDefaultConfig().getString("worldprefix");
-        World w = p.getWorld();
+        World w = player.getWorld();
         if (!w.getName().toLowerCase().startsWith(prefix.toLowerCase())) return;
 
         // インターバルテーブルが空の場合には何もしない
@@ -191,41 +199,42 @@ public class RankingListener extends ListenerFrame {
             // ワールド境界の状態をチェック(直径1000の場合、未拡張なので抑止する)
             WorldBorder wb = w.getWorldBorder();
             if (wb.getSize() == 1000) {
-                sendPluginMessage(plg, p, "強化エンダードラゴンが規定回数攻略されるまでエンドゲートウェイの使用は抑止されます");
+                sendPluginMessage(plg, player, "強化エンダードラゴンが規定回数攻略されるまでエンドゲートウェイの使用は抑止されます");
                 event.setCancelled(true);
             }
             return;
         }
-        
+
         // 最後のインターバル時刻を超えていたら強制解除
         Date now = new Date();
         if (lastInterval < now.getTime()) {
             intervalList.clear();
             return;
         }
-        
+
         // インターバルテーブルがある場合、自分のインターバルを超えてるか確認し超えていない場合は抑止する
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-        if (intervalList.containsKey(p)) {
-            if (intervalList.get(p) > now.getTime()) {
+        if (intervalList.containsKey(player.getUniqueId())) {
+            if (intervalList.get(player.getUniqueId()) > now.getTime()) {
                 // まだ未達
                 event.setCancelled(true);
-                p.sendMessage("["+plg.getName()+"] "+sdf.format(new Date(intervalList.get(p))));
+                player.sendMessage("[" + plg.getName() + "] " + sdf.format(new Date(intervalList.get(player.getUniqueId()))));
             } else {
                 // 到達
-                intervalList.remove(p);
+                intervalList.remove(player.getUniqueId());
             }
         } else {
             // インターバルテーブルに登録がない場合は空になるまで待つ
             event.setCancelled(true);
-            p.sendMessage("["+plg.getName()+"] 現在のサーバー時刻 "+sdf.format(new Date()));
-            p.sendMessage("["+plg.getName()+"] エンドゲートウェイ開放目安 "+sdf.format(new Date(lastInterval)));
+            player.sendMessage("[" + plg.getName() + "] 現在のサーバー時刻 " + sdf.format(new Date()));
+            player.sendMessage("[" + plg.getName() + "] エンドゲートウェイ開放目安 " + sdf.format(new Date(lastInterval)));
         }
     }
 
     /**
      * エンドラ討伐判定
-     * @param event 
+     *
+     * @param event
      */
     @EventHandler(priority = EventPriority.LOWEST)
     public void EntityDeath(EntityDeathEvent event) {
@@ -233,11 +242,11 @@ public class RankingListener extends ListenerFrame {
         if (event.getEntityType() == EntityType.ENDER_DRAGON) {
             // エンダークリスタル設置ボーナスブロック初期化
             existCrystal.clear();
-            
+
             // 討伐時メッセージ表示
             round--;
             roundMessage();
-            
+
             // 終了判定
             if (round == 0) {
                 endRankingPresent();
@@ -248,7 +257,8 @@ public class RankingListener extends ListenerFrame {
 
     /**
      * エンドラ討伐判定
-     * @param event 
+     *
+     * @param event
      */
     @EventHandler(priority = EventPriority.LOWEST)
     public void PlayerDeath(PlayerDeathEvent event) {
@@ -257,53 +267,48 @@ public class RankingListener extends ListenerFrame {
         if (curWorld == null) return;
 
         // エンドラ戦中のワールドでなければ何もしない
-        Player pl = event.getEntity();
-        if (!pl.getWorld().equals(curWorld)) return;
+        Player player = event.getEntity();
+        if (!player.getWorld().equals(curWorld)) return;
 
         // 死亡メッセージ無し
         event.setDeathMessage(null);
 
         // PvPでの死亡の場合、ランキングポイントを半分譲渡する
-        Player killer = pl.getKiller();
-        if (killer != null) {
-            if (ranking.containsKey(pl.getName())) {
-                EcoDragonUser plr = ranking.get(pl.getName());
-                if (plr.isPvP()) {
-                    EcoDragonUser killerr = null;
-                    if (ranking.containsKey(killer.getName())) {
-                        killerr = ranking.get(killer.getName());
-                    } else {
-                        killerr = new EcoDragonUser(killer);
-                        ranking.put(killer.getName(), killerr);
-                    }
-                    if ((plr.isPvP()) &&
-                        (killerr.isPvP())) {
-                        int harf = plr.getPoint() / 2;
+        Player killerPlayer = player.getKiller();
+        if (killerPlayer != null) {
+            if (ecoDragonUserList.ContainsEcoDragonUser(player)) {
+                EcoDragonPlayer ecoDragonPlayer = ecoDragonUserList.getEcoDragonPlayer(player);
+                if (ecoDragonPlayer.isPvP()) {
+                    EcoDragonPlayer ecoDragonPlayerKiller = ecoDragonUserList.getEcoDragonPlayer(killerPlayer);
+                    if ((ecoDragonPlayer.isPvP()) &&
+                        (ecoDragonPlayerKiller.isPvP())) {
+
+                        int harf = ecoDragonPlayer.getPoint() / 2;
                         StringBuilder sb = new StringBuilder();
                         sb.append("before point ");
-                        sb.append(pl.getName());
+                        sb.append(player.getName());
                         sb.append("(");
-                        sb.append(plr.getPoint());
+                        sb.append(ecoDragonPlayer.getPoint());
                         sb.append(") -> ");
-                        sb.append(killer.getName());
-                        sb.append(killerr.getPoint());
+                        sb.append(killerPlayer.getName());
+                        sb.append(ecoDragonPlayerKiller.getPoint());
                         sb.append(")");
                         sb.append("after point ");
 
-                        plr.addPoint(-harf);
-                        killerr.addPoint(harf);
+                        ecoDragonPlayer.addPoint(-harf);
+                        ecoDragonPlayerKiller.addPoint(harf);
 
-                        pl.sendMessage("[" + plg.getName() + "] エンドラ戦 PvPデスペナルティ: -" + harf + " pt");
-                        killer.sendMessage("[" + plg.getName() + "] エンドラ戦 PvP討伐ボーナス: +" + harf + " pt");
+                        player.sendMessage("[" + plg.getName() + "] エンドラ戦 PvPデスペナルティ: -" + harf + " pt");
+                        killerPlayer.sendMessage("[" + plg.getName() + "] エンドラ戦 PvP討伐ボーナス: +" + harf + " pt");
 
                         // リスト更新
                         refreshScoreBoard();
-                        sb.append(pl.getName());
+                        sb.append(player.getName());
                         sb.append("(");
-                        sb.append(plr.getPoint());
+                        sb.append(ecoDragonPlayer.getPoint());
                         sb.append(") -> ");
-                        sb.append(killer.getName());
-                        sb.append(killerr.getPoint());
+                        sb.append(killerPlayer.getName());
+                        sb.append(ecoDragonPlayerKiller.getPoint());
                         sb.append(")");
                         log.info(sb.toString());
                     }
@@ -311,9 +316,10 @@ public class RankingListener extends ListenerFrame {
             }
         }
     }
-    
+
     /**
      * エンドラ戦中の一部ブロック設置抑止
+     *
      * @param event イベント情報
      */
     @EventHandler(priority = EventPriority.LOWEST)
@@ -322,13 +328,13 @@ public class RankingListener extends ListenerFrame {
         if (curWorld == null) {
             return;
         }
-        
+
         // 当該ワールドだけ
         Block b = event.getBlock();
         if (!curWorld.equals(b.getWorld())) {
             return;
         }
-        
+
         // 黒曜石の設置を禁止する
         if (b.getType() == Material.OBSIDIAN) {
             event.setCancelled(true);
@@ -340,12 +346,13 @@ public class RankingListener extends ListenerFrame {
             event.setCancelled(true);
             event.getPlayer().sendMessage("[" + plg.getName() + "] エンドラ戦中のTNT設置は禁止されています");
         }
-        
+
     }
-    
+
     /**
      * プレイヤー接触イベント
-     * @param event 
+     *
+     * @param event
      */
     @EventHandler(priority = EventPriority.LOWEST)
     public void PlayerInteract(PlayerInteractEvent event) {
@@ -363,7 +370,7 @@ public class RankingListener extends ListenerFrame {
         }
 
         // エンダークリスタル設置
-        Player p = event.getPlayer();
+        Player player = event.getPlayer();
         if (Action.RIGHT_CLICK_BLOCK == event.getAction()) {
             if (Material.BEDROCK == event.getClickedBlock().getType()) {
                 if (Material.END_CRYSTAL == event.getMaterial()) {
@@ -377,9 +384,9 @@ public class RankingListener extends ListenerFrame {
                     z.setZ(z.getZ() - 1);
                     zz.setZ(zz.getZ() + 1);
                     if (((x.getBlock().getType() == Material.BEDROCK) && (xx.getBlock().getType() == Material.BEDROCK) &&
-                         (z.getBlock().getType() != Material.BEDROCK) && (zz.getBlock().getType() != Material.BEDROCK)) ||
-                        ((z.getBlock().getType() == Material.BEDROCK) && (zz.getBlock().getType() == Material.BEDROCK) &&
-                         (x.getBlock().getType() != Material.BEDROCK) && (xx.getBlock().getType() != Material.BEDROCK))) {
+                            (z.getBlock().getType() != Material.BEDROCK) && (zz.getBlock().getType() != Material.BEDROCK)) ||
+                            ((z.getBlock().getType() == Material.BEDROCK) && (zz.getBlock().getType() == Material.BEDROCK) &&
+                                    (x.getBlock().getType() != Material.BEDROCK) && (xx.getBlock().getType() != Material.BEDROCK))) {
                         Bukkit.getScheduler().runTask(plg, new Runnable() {
                             @Override
                             public void run() {
@@ -391,16 +398,13 @@ public class RankingListener extends ListenerFrame {
                                         if (event.getClickedBlock().equals(belowCrystal)) {
                                             if (!existCrystal.contains(belowCrystal)) {
                                                 existCrystal.add(belowCrystal);
-                                                EcoDragonUser u = ranking.get(p.getName());
-                                                if (u == null) {
-                                                    u = new EcoDragonUser(p);
-                                                    ranking.put(p.getName(), u);
-                                                }
+                                                // 別スレッドで実行する系列はgetPlayerでサーバーから改めて取得
+                                                EcoDragonPlayer ecoDragonPlayer = ecoDragonUserList.getEcoDragonPlayer(player);
                                                 int bonus = conf.getInt("crystal-place-bonus");
-                                                u.addPoint(bonus);
-                                                p.sendMessage("[" + plg.getName() + "] エンダークリスタルの設置ボーナス: " + bonus + " pt");
-                                                plg.getServer().broadcastMessage("[" + plg.getName() + "] " + p.getName() + " がエンダークリスタルを設置しました(bonus: " + bonus + " pt)");
-                                                log.info("[" + plg.getName() + "] " + p.getName() + " エンダークリスタルの設置ボーナス: " + bonus + " pt");
+                                                ecoDragonPlayer.addPoint(bonus);
+                                                ecoDragonPlayer.getPlayer().sendMessage("[" + plg.getName() + "] エンダークリスタルの設置ボーナス: " + bonus + " pt");
+                                                plg.getServer().broadcastMessage("[" + plg.getName() + "] " + ecoDragonPlayer.getPlayer().getName() + " がエンダークリスタルを設置しました(bonus: " + bonus + " pt)");
+                                                log.info("[" + plg.getName() + "] " + ecoDragonPlayer.getPlayer().getName() + " エンダークリスタルの設置ボーナス: " + bonus + " pt");
                                                 refreshScoreBoard();
                                                 break;
                                             }
@@ -418,18 +422,20 @@ public class RankingListener extends ListenerFrame {
                 if (event.getItem() != null) {
                     // トロッコ禁止
                     if ((event.getItem().getType() == Material.TNT_MINECART) ||
-                        (event.getItem().getType() == Material.HOPPER_MINECART)) {
+                            (event.getItem().getType() == Material.HOPPER_MINECART)) {
                         if ((b.getType() == Material.RAIL) ||
                             (b.getType() == Material.POWERED_RAIL) ||
                             (b.getType() == Material.DETECTOR_RAIL) ||
-                            (b.getType() == Material.ACTIVATOR_RAIL)){
+                            (b.getType() == Material.ACTIVATOR_RAIL)) {
+
                             event.getPlayer().sendMessage("[" + plg.getName() + "] エンドラ戦中のTNTマインカートの設置は禁止されています");
                             event.setCancelled(true);
                         }
+
                     } else if (event.getItem().getType() == Material.END_CRYSTAL) {
                         for (Entity e : b.getWorld().getEntities()) {
                             if (e.getType() == EntityType.ENDER_DRAGON) {
-                                p.sendMessage("[" + plg.getName() + "] エンドラ戦中はエンドラがいない間だけエンダークリスタルの設置が許可されています");
+                                player.sendMessage("[" + plg.getName() + "] エンドラ戦中はエンドラがいない間だけエンダークリスタルの設置が許可されています");
                                 event.setCancelled(true);
                                 break;
                             }
@@ -442,7 +448,8 @@ public class RankingListener extends ListenerFrame {
 
     /**
      * エンティティ対エンティティダメージ判定イベントハンドラ
-     * @param event 
+     *
+     * @param event
      */
     @EventHandler(priority = EventPriority.LOWEST)
     public void EntityDamageByEntity(EntityDamageByEntityEvent event) {
@@ -450,109 +457,93 @@ public class RankingListener extends ListenerFrame {
         if (curWorld == null) {
             return;
         }
-        
+
         // 当該ワールドだけ
-        Entity ent = event.getEntity();
-        if (!curWorld.equals(ent.getWorld())) {
+        Entity eventEntity = event.getEntity();
+        if (!curWorld.equals(eventEntity.getWorld())) {
             return;
         }
 
-        Player player = null;
-        try {
-        // 各Entityタイプごとに攻撃ユーザーを抽出
-        if (event.getDamager().getType() == EntityType.PLAYER) {
-             player = (Player) event.getDamager();
-            //m.info("PlayerDamage:" + player.getName());
-        } else if (event.getDamager().getType() == EntityType.ARROW) {
-            Arrow arrow = (Arrow) event.getDamager();
-//            if (arrow.getShooter().getType() != EntityType.PLAYER) return;
-            player = (Player) arrow.getShooter();
-            //m.info("ArrowDamage:" + player.getName());
-        } else if (event.getDamager().getType() == EntityType.SNOWBALL) {
-            Snowball ball = (Snowball) event.getDamager();
-//            if (ball.getShooter().getType() != EntityType.PLAYER) return;
-            player = (Player) ball.getShooter();
-            //m.info("SnowballDamage:" + player.getName());
-        } else if (event.getDamager().getType() == EntityType.EGG) {
-            Egg egg = (Egg) event.getDamager();
-//            if (egg.getShooter().getType() != EntityType.PLAYER) return;
-            player = (Player) egg.getShooter();
-            //m.info("EggDamage:" + player.getName());
-        } else if (event.getDamager().getType() == EntityType.SPLASH_POTION) {
-            ThrownPotion potion = (ThrownPotion) event.getDamager();
-//            if (potion.getShooter().getType() != EntityType.PLAYER) return;
-            player = (Player) potion.getShooter();
-            //m.info("PotionDamage:" + player.getName());
+        ProjectileSource attackEntity = null;
+        Entity damager = event.getDamager();
+        switch (damager.getType()) {
+            case PLAYER:
+                attackEntity = (Player) damager;
+                break;
+            case ARROW:
+                attackEntity = ((Arrow) damager).getShooter();
+                break;
+            case SNOWBALL:
+                attackEntity = ((Snowball) damager).getShooter();
+                break;
+            case EGG:
+                attackEntity = ((Egg) damager).getShooter();
+                break;
+            case SPLASH_POTION:
+                attackEntity = ((ThrownPotion) damager).getShooter();
+                break;
+            case TRIDENT:
+                attackEntity = ((Trident) damager).getShooter();
+                break;
+            case ENDER_PEARL:
+                attackEntity = ((EnderPearl) damager).getShooter();
+                break;
+            default:
+                break;
         }
-        } catch (Exception e) {
-            return;
-        }
-        // 攻撃ユーザーが確定している場合のみ集計
-        if (player == null) return;
-        // PvP
-        if (event.getEntity() instanceof Player) {
-            Player p = (Player) event.getEntity();
-            Player d = player;
-            if ((!isPlayerPvP(p)) ||
-                (!isPlayerPvP(d))){
-                event.setCancelled(true);
-                return;
-            }
-        }
+        //攻撃エンティティがプレイヤーでなければreturn
+        if ((attackEntity == null) || (!(attackEntity instanceof Player))) return;
+        Player attackPlayer = (Player) attackEntity;
 
-        if (ent.getType() == EntityType.ENDER_CRYSTAL) {
-            // プレイヤーを取得
-            Player p = null;
-            if (event.getDamager() instanceof Player) {
-                p = (Player) event.getDamager();
-            } else if (event.getDamager().getType() == EntityType.ARROW) {
-                ProjectileSource ps = (ProjectileSource) ((Arrow)event.getDamager()).getShooter();
-                if (ps instanceof Player) {
-                    p = (Player) ps;
+        switch (eventEntity.getType()) {
+            case PLAYER:
+                //PVP
+                Player targetPlayer = (Player) event.getEntity();
+                if (event.getEntity() instanceof Player) {
+                    if (!checkCanPVP(attackPlayer, targetPlayer)) {
+                        event.setCancelled(true);
+                        return;
+                    }
                 }
-            } else if (event.getDamager().getType() == EntityType.EGG) {
-                ProjectileSource ps = (ProjectileSource) ((Egg)event.getDamager()).getShooter();
-                if (ps instanceof Player) {
-                    p = (Player) ps;
+                break;
+            case ENDER_CRYSTAL: {
+                // 破壊者のランキング操作
+                EcoDragonPlayer ecoDragonPlayer = ecoDragonUserList.getEcoDragonPlayer(attackPlayer);
+                boolean dragonExist = false;
+                for (Entity e : curWorld.getEntities()) {
+                    if (e.getType() == EntityType.ENDER_DRAGON) {
+                        dragonExist = true;
+                        break;
+                    }
                 }
-            } else if (event.getDamager().getType() == EntityType.SNOWBALL) {
-                ProjectileSource ps = (ProjectileSource) ((Snowball)event.getDamager()).getShooter();
-                if (ps instanceof Player) {
-                    p = (Player) ps;
+                if (dragonExist) {
+                    int bonus = conf.getInt("crystal-break-bonus");
+                    ecoDragonPlayer.addPoint(bonus);
+                    plg.getServer().broadcastMessage("[" + plg.getName() + "] " + attackPlayer.getName() + " がエンダークリスタルを破壊しました(bonus: " + bonus + " pt)");
+                    attackPlayer.sendMessage("[" + plg.getName() + "] エンダークリスタルの破壊ボーナス: " + bonus + " pt");
+                    log.info("[" + plg.getName() + "] " + attackPlayer.getName() + " エンダークリスタルの破壊ボーナス: " + bonus + " pt");
+                } else {
+                    int penalty = conf.getInt("crystal-break-penalty");
+                    ecoDragonPlayer.addPoint(penalty);
+                    plg.getServer().broadcastMessage("[" + plg.getName() + "] " + attackPlayer.getName() + " がエンダークリスタルを破壊しました(penalty: " + penalty + " pt)");
+                    attackPlayer.sendMessage("[" + plg.getName() + "] エンダークリスタルの破壊ペナルティ: " + penalty + " pt");
+                    log.info("[" + plg.getName() + "] " + attackPlayer.getName() + "エンダークリスタルの破壊ペナルティ: " + penalty + " pt");
                 }
-            } else {
-                return;
+                refreshScoreBoard();
+                break;
             }
-            
-            // ボーナス or ペナルティ判定
-
-            // 破壊者のランキング操作
-            EcoDragonUser plr = ranking.get(p.getName());
-            if (plr == null) {
-                plr = new EcoDragonUser(p);
-                ranking.put(p.getName(), plr);
+            case ENDER_DRAGON: {
+                EcoDragonPlayer ecoDragonPlayer = ecoDragonUserList.getEcoDragonPlayer(attackPlayer);
+                ecoDragonPlayer.addDamage((int) event.getDamage());
+                refreshScoreBoard();
+                break;
             }
-            boolean dragonExist = false;
-            for (Entity e : curWorld.getEntities()) {
-                if (e.getType() == EntityType.ENDER_DRAGON) {
-                    dragonExist = true;
-                    break;
-                }
+            default: {
+                EcoDragonPlayer ecoDragonPlayer = ecoDragonUserList.getEcoDragonPlayer(attackPlayer);
+                ecoDragonPlayer.addDamageEtc((int) event.getDamage());
+                refreshScoreBoard();
+                break;
             }
-            if (dragonExist) {
-                int bonus = conf.getInt("crystal-break-bonus");
-                plr.addPoint(bonus);
-                plg.getServer().broadcastMessage("[" + plg.getName() + "] " + p.getName() + " がエンダークリスタルを破壊しました(bonus: " + bonus + " pt)");
-                p.sendMessage("[" + plg.getName() + "] エンダークリスタルの破壊ボーナス: " + bonus + " pt");
-                log.info("[" + plg.getName() + "] " + p.getName() + " エンダークリスタルの破壊ボーナス: " + bonus + " pt");
-            } else {
-                int penalty = conf.getInt("crystal-break-penalty");
-                plr.addPoint(penalty);
-                plg.getServer().broadcastMessage("[" + plg.getName() + "] " + p.getName() + " がエンダークリスタルを破壊しました(penalty: " + penalty + " pt)");
-                p.sendMessage("[" + plg.getName() + "] エンダークリスタルの破壊ペナルティ: " + penalty + " pt");
-                log.info("[" + plg.getName() + "] " + p.getName() + "エンダークリスタルの破壊ペナルティ: " + penalty + " pt");
-            }
-            refreshScoreBoard();
         }
     }
 
@@ -562,7 +553,7 @@ public class RankingListener extends ListenerFrame {
         if (curWorld == null) {
             return;
         }
-        
+
         // 当該ワールドだけ
         HumanEntity e = event.getWhoClicked();
         if (!curWorld.equals(e.getWorld())) {
@@ -597,6 +588,7 @@ public class RankingListener extends ListenerFrame {
 
     /**
      * エンドラ戦中の一部ブロック破壊抑止
+     *
      * @param event イベント情報
      */
     @EventHandler(priority = EventPriority.LOWEST)
@@ -605,13 +597,13 @@ public class RankingListener extends ListenerFrame {
         if (curWorld == null) {
             return;
         }
-        
+
         // 当該ワールドだけ
         Block b = event.getBlock();
         if (!curWorld.equals(b.getWorld())) {
             return;
         }
-        
+
         // 黒曜石の破壊を禁止する
         if (b.getType() == Material.OBSIDIAN) {
             event.setCancelled(true);
@@ -621,30 +613,33 @@ public class RankingListener extends ListenerFrame {
 
     /**
      * エンドラ戦中の一部ブロック設置抑止(バケツ経由)
+     *
      * @param event イベント情報
      */
-    @EventHandler(priority=EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void PlayerBucketEmptyEvent(PlayerBucketEmptyEvent event) {
         // エンドラ戦中だけ
         if (curWorld == null) {
             return;
         }
-        
+
         // 当該ワールドだけ
         Player p = event.getPlayer();
         if (!curWorld.equals(p.getWorld())) {
             return;
         }
-    
+
         // 溶岩バケツは抑止
         if (event.getBucket() == Material.LAVA_BUCKET) {
             event.setCancelled(true);
             p.sendMessage("[" + plg.getName() + "] エンドラ戦中の当該ワールドにおける溶岩バケツの使用は禁止されています");
         }
     }
+
     /**
      * つり
-     * @param event 
+     *
+     * @param event
      */
     @EventHandler(priority = EventPriority.LOWEST)
     public void PlayerFish(PlayerFishEvent event) {
@@ -652,55 +647,53 @@ public class RankingListener extends ListenerFrame {
         if (curWorld == null) {
             return;
         }
-        
+
         // 当該ワールドだけ
-        Player p = event.getPlayer();
-        if (!curWorld.equals(p.getWorld())) {
+        Player player = event.getPlayer();
+        if (!curWorld.equals(player.getWorld())) {
             return;
         }
-    
+
         if (event.getState() == PlayerFishEvent.State.CAUGHT_FISH) {
-            EcoDragonUser eu = ranking.get(p.getName());
-            if (eu == null) {
-                eu = new EcoDragonUser(p);
-                ranking.put(p.getName(), eu);
-            }
+            EcoDragonPlayer ecoDragonPlayer = ecoDragonUserList.getEcoDragonPlayer(player);
+
 
             int point = 0;
             if (event.getCaught().getName().equals("item.item.fish.cod.raw")) {
                 point = conf.getInt("fishing-bonus");
-                eu.addPoint(point);
-                p.sendMessage("[" + plg.getName() + "] さかなだー！ (" + point + " pt)");
+                ecoDragonPlayer.addPoint(point);
+                player.sendMessage("[" + plg.getName() + "] さかなだー！ (" + point + " pt)");
             } else if (event.getCaught().getName().equals("item.item.fish.salmon.raw")) {
                 point = conf.getInt("fishing-salmon-bonus");
-                eu.addPoint(point);
-                p.sendMessage("[" + plg.getName() + "] しゃけだー！ (" + point + " pt)");
+                ecoDragonPlayer.addPoint(point);
+                player.sendMessage("[" + plg.getName() + "] しゃけだー！ (" + point + " pt)");
             } else if (event.getCaught().getName().equals("item.item.fish.pufferfish.raw")) {
                 point = conf.getInt("fishing-pufferfish-bonus");
-                eu.addPoint(point);
-                p.sendMessage("[" + plg.getName() + "] ふぐだー！ (" + point + " pt)");
+                ecoDragonPlayer.addPoint(point);
+                player.sendMessage("[" + plg.getName() + "] ふぐだー！ (" + point + " pt)");
             } else if (event.getCaught().getName().equals("item.item.fish.clownfish.raw")) {
                 point = conf.getInt("fishing-clownfish-bonus");
-                eu.addPoint(point);
-                p.sendMessage("[" + plg.getName() + "] くまのみだー！ (" + point + " pt)");
+                ecoDragonPlayer.addPoint(point);
+                player.sendMessage("[" + plg.getName() + "] くまのみだー！ (" + point + " pt)");
             } else {
                 point = conf.getInt("fishing-trash");
-                eu.addPoint(point);
-                p.sendMessage("[" + plg.getName() + "] ごみだー！ (" + point + " pt)");
+                ecoDragonPlayer.addPoint(point);
+                player.sendMessage("[" + plg.getName() + "] ごみだー！ (" + point + " pt)");
             }
         }
     }
 
     /**
      * エンドラ戦中透明化ポーション抑止(残留)
-     * @param event 
+     *
+     * @param event
      */
     @EventHandler(priority = EventPriority.LOWEST)
     public void LingeringPotionSplashEvent(LingeringPotionSplashEvent event) {
-        
-        ThrownPotion p = event.getEntity();
-        if (p.getWorld().equals(curWorld)) {
-            for (PotionEffect po : p.getEffects()) {
+
+        ThrownPotion potion = event.getEntity();
+        if (potion.getWorld().equals(curWorld)) {
+            for (PotionEffect po : potion.getEffects()) {
                 if (po.getType() == PotionEffectType.INVISIBILITY) {
                     event.setCancelled(true);
                     return;
@@ -711,13 +704,14 @@ public class RankingListener extends ListenerFrame {
 
     /**
      * エンドラ戦中透明化ポーション抑止(投合)
-     * @param event 
+     *
+     * @param event
      */
     @EventHandler(priority = EventPriority.LOWEST)
     public void PotionSplash(PotionSplashEvent event) {
-        ThrownPotion p = event.getEntity();
-        if (p.getWorld().equals(curWorld)) {
-            for (PotionEffect po : p.getEffects()) {
+        ThrownPotion potion = event.getEntity();
+        if (potion.getWorld().equals(curWorld)) {
+            for (PotionEffect po : potion.getEffects()) {
                 if (po.getType() == PotionEffectType.INVISIBILITY) {
                     event.setCancelled(true);
                     return;
@@ -728,23 +722,24 @@ public class RankingListener extends ListenerFrame {
 
     /**
      * エンドラ戦中透明化ポーション抑止(飲用)
+     *
      * @param event
      */
     @EventHandler(priority = EventPriority.NORMAL)
     public void onPotionDrink(PlayerInteractEvent event) {
-        Player p = event.getPlayer();
+        Player player = event.getPlayer();
         if (curWorld != null) {
-            if (curWorld.equals(p.getWorld())) {
-                if (((event.getAction() == Action.RIGHT_CLICK_AIR) || (event.getAction() == Action.RIGHT_CLICK_BLOCK)) && (p.getItemInHand().getType() == Material.POTION)) {
-                    if ( ((PotionMeta)p.getItemInHand().getItemMeta()).getBasePotionData().getType() == PotionType.INVISIBILITY) {
-                        int hs = p.getInventory().getHeldItemSlot();
-                        drink(p,hs);
+            if (curWorld.equals(player.getWorld())) {
+                if (((event.getAction() == Action.RIGHT_CLICK_AIR) || (event.getAction() == Action.RIGHT_CLICK_BLOCK)) && (player.getItemInHand().getType() == Material.POTION)) {
+                    if (((PotionMeta) player.getItemInHand().getItemMeta()).getBasePotionData().getType() == PotionType.INVISIBILITY) {
+                        int hs = player.getInventory().getHeldItemSlot();
+                        drink(player, hs);
                     }
                 }
             }
         }
     }
- 
+
     public void drink(final Player p, int hs) {
         plg.getServer().getScheduler().scheduleSyncDelayedTask(plg, new Runnable() {
             public void run() {
@@ -791,7 +786,7 @@ public class RankingListener extends ListenerFrame {
      */
     private void endRankingPresent() {
         int totalPoint = 0;
-         SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
         // エンドラ戦中でなければ何もしない
         if (curWorld == null) return;
 
@@ -803,92 +798,77 @@ public class RankingListener extends ListenerFrame {
             Long cur = new Date().getTime();
             // 全体のポイントを集計する、ゲート開放予定時刻を算出
             for (int rank = 1; rank <= entries.size(); rank++) {
-                EcoDragonUser rankUser = (EcoDragonUser)((Map.Entry)entries.get(rank - 1)).getValue();
+                EcoDragonPlayer rankUser = (EcoDragonPlayer) ((Map.Entry) entries.get(rank - 1)).getValue();
                 totalPoint += rankUser.getPoint();
                 lastInterval = cur + rank * 30000;
-                intervalList.put(rankUser.getPlayer(), lastInterval);
+                intervalList.put(rankUser.getPlayer().getUniqueId(), lastInterval);
             }
             // 個々人のランキング表彰、アイテム進呈
             for (int rank = 1; rank <= entries.size(); rank++) {
-                EcoDragonUser rankUser = (EcoDragonUser)((Map.Entry)entries.get(rank - 1)).getValue();
-                log.info("ranking:"+(rank)+"位:"+rankUser.getPlayer().getName());
+                EcoDragonPlayer rankUser = (EcoDragonPlayer) ((Map.Entry) entries.get(rank - 1)).getValue();
+                Player player = rankUser.getPlayer();
+                log.info("ranking:" + (rank) + "位:" + player.getName());
                 int per = (rankUser.getPoint() * 100) / totalPoint;
                 if (rank <= 3) {
-                    plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f 討伐ランキング上位 [" + rank + "位:" + rankUser.getPlayer().getName() + "](" + rankUser.getPoint() + "/" + totalPoint + " ポイント(" + per +"%))");
+                    plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f 討伐ランキング上位 [" + rank + "位:" + player.getName() + "](" + rankUser.getPoint() + "/" + totalPoint + " ポイント(" + per + "%))");
                 }
                 int lv = 0;
                 rankUser.setRanking(true);
                 switch (rank) {
                     case 1:
-                        // どうもリログすると取ってあったPlayerインスタンスが無効化されているような雰囲気なので、名前で探し直して賞品付与する
-                        for (Player work : plg.getServer().getOnlinePlayers()) {
-                            if (rankUser.getPlayer().getName().equals(work.getName())) {
-                                lv = 30 * 4;
-                                presentItem(work.getPlayer(), Material.DIAMOND_BLOCK, 5);
-                                presentItem(work.getPlayer(), Material.EMERALD_BLOCK, 3);
-                                presentItem(work.getPlayer(), makeCertificate(rankUser.getPlayer().getName()));
-                                break;
-                            }
-                        }
+                        lv = 30 * 4;
+                        presentItem(player, Material.DIAMOND_BLOCK, 5);
+                        presentItem(player, Material.EMERALD_BLOCK, 3);
+                        presentItem(player, makeCertificate(player.getName()));
                         break;
                     case 2:
-                        for (Player work : plg.getServer().getOnlinePlayers()) {
-                            if (rankUser.getPlayer().getName().equals(work.getName())) {
-                                lv = 30 * 3;
-                                presentItem(work.getPlayer(), Material.DIAMOND_BLOCK, 4);
-                                presentItem(work.getPlayer(), Material.EMERALD_BLOCK, 3);
-                                break;
-                            }
-                        }
+                        lv = 30 * 3;
+                        presentItem(player, Material.DIAMOND_BLOCK, 4);
+                        presentItem(player, Material.EMERALD_BLOCK, 3);
                         break;
                     case 3:
-                        for (Player work : plg.getServer().getOnlinePlayers()) {
-                            if (rankUser.getPlayer().getName().equals(work.getName())) {
-                                lv = 30 * 2;
-                                presentItem(work.getPlayer(), Material.DIAMOND_BLOCK, 3);
-                                presentItem(work.getPlayer(), Material.EMERALD_BLOCK, 1);
-                                break;
-                            }
-                        }
+                        lv = 30 * 2;
+                        presentItem(player, Material.DIAMOND_BLOCK, 3);
+                        presentItem(player, Material.EMERALD_BLOCK, 1);
                         break;
                     default:
                         rankUser.setRanking(false);
                 }
-                rankUser.getPlayer().sendMessage("§d[" + plg.getName() + "]§f EnderDragon討伐ランキング あなたは[" + rank + "位:" + rankUser.getPoint() +" / " + totalPoint + " ポイント(" + per +"%)]でした");
+                player.sendMessage("§d[" + plg.getName() + "]§f EnderDragon討伐ランキング あなたは[" + rank + "位:" + rankUser.getPoint() + " / " + totalPoint + " ポイント(" + per + "%)]でした");
                 if (rankUser.getRanking()) {
-                    rankUser.getPlayer().setLevel(rankUser.getPlayer().getLevel() + lv);
-                    rankUser.getPlayer().sendMessage("§d[" + plg.getName() + "]§f 討伐ボーナス [" + lv + " LV] 獲得しました");
+                    player.setLevel(player.getLevel() + lv);
+                    player.sendMessage("§d[" + plg.getName() + "]§f 討伐ボーナス [" + lv + " LV] 獲得しました");
                 }
-                if (intervalList.containsKey(rankUser.getPlayer())) {
-                    rankUser.getPlayer().sendMessage("§d[" + plg.getName() + "]§f あなたのエンドゲートウェイ開放時刻は"+sdf.format(new Date(intervalList.get(rankUser.getPlayer())))+"頃です");
+                if (intervalList.containsKey(player.getUniqueId())) {
+                    player.sendMessage("§d[" + plg.getName() + "]§f あなたのエンドゲートウェイ開放時刻は" + sdf.format(new Date(intervalList.get(player.getUniqueId()))) + "頃です");
                 }
             }
-        }
-        catch (IndexOutOfBoundsException e) {
+        } catch (IndexOutOfBoundsException e) {
             // 人数が足りなくて順位表示できない場合は中断
             log.info("IndexOutOfBoundsException");
         }
-        // 
-        for(Player p : plg.getServer().getOnlinePlayers()) {
-            if (ranking.containsKey(p.getName())) {
-                EcoDragonUser user = ranking.get(p.getName());
+        //
+        for (Player player : plg.getServer().getOnlinePlayers()) {
+            if (ecoDragonUserList.ContainsEcoDragonUser(player)) {
+                EcoDragonPlayer ecoDragonPlayer = ecoDragonUserList.getEcoDragonPlayer(player);
                 // すでに賞品もらってたらキャンセル
-                if (user != null) {
-                    if (user.getRanking() == true) {
+                if (ecoDragonPlayer != null) {
+                    if (ecoDragonPlayer.getRanking() == true) {
                         continue;
                     }
                 }
                 // 参加賞
-                p.setLevel(p.getLevel() + 30);
-                p.sendMessage("§d[" + plg.getName() + "]§f 討伐参加賞 [30 LV] 獲得しました");
-                presentItem(p);
+                player.setLevel(player.getLevel() + 30);
+                player.sendMessage("§d[" + plg.getName() + "]§f 討伐参加賞 [30 LV] 獲得しました");
+                presentItem(player);
             }
         }
-        ranking.clear();
+        ecoDragonUserList.clearMap();
     }
-    
+
     /**
      * 賞状作成処理
+     *
      * @param name 表彰者名
      * @return 賞状インスタンス
      */
@@ -897,11 +877,11 @@ public class RankingListener extends ListenerFrame {
         SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy年MM月dd日 HH時mm分ss秒");
         ItemStack item = new ItemStack(Material.WRITTEN_BOOK);
         Date date = new Date();
-        BookMeta meta = (BookMeta)item.getItemMeta();
+        BookMeta meta = (BookMeta) item.getItemMeta();
         meta.setAuthor(cerConf.getString("author"));
         meta.setDisplayName(sdf1.format(date) + cerConf.getString("name"));
         meta.setTitle(sdf1.format(date) + cerConf.getString("title"));
-        for (String page: cerConf.getArrayList("pages")) {
+        for (String page : cerConf.getArrayList("pages")) {
             meta.addPage(page + "\n\n§c§l成績 1 位 プレイヤー[" + name + "]§r\n" + sdf2.format(date));
         }
         item.setItemMeta(meta);
@@ -910,19 +890,21 @@ public class RankingListener extends ListenerFrame {
 
     /**
      * 参加賞進呈処理
-     * @param p 進呈プレイヤー
+     *
+     * @param player 進呈プレイヤー
      */
-    private void presentItem(Player p) {
-        presentItem(p, Material.AIR, 1);
+    private void presentItem(Player player) {
+        presentItem(player, Material.AIR, 1);
     }
 
     /**
      * アイテム進呈処理
-     * @param p 進呈プレイヤー
-     * @param item アイテム指定
+     *
+     * @param player      進呈プレイヤー
+     * @param item   アイテム指定
      * @param amount 個数指定
      */
-    private void presentItem(Player p, Material item, int amount){
+    private void presentItem(Player player, Material item, int amount) {
         ItemStack i = null;
         if (item == Material.AIR) {
             ArrayList<ItemStack> list = new ArrayList<>();
@@ -956,34 +938,37 @@ public class RankingListener extends ListenerFrame {
             list.add(new ItemStack(Material.RED_MUSHROOM, 10));
             list.add(new ItemStack(Material.SOUL_SOIL, 64));
             i = list.get(new Random().nextInt(list.size()));
-            p.sendMessage("§d[" + plg.getName() + "]§f 討伐参加賞アイテム ["+i.getType().name()+"] x " + i.getAmount() + " 獲得しました");
+            player.sendMessage("§d[" + plg.getName() + "]§f 討伐参加賞アイテム [" + i.getType().name() + "] x " + i.getAmount() + " 獲得しました");
         } else {
             i = new ItemStack(item, amount);
-            p.sendMessage("§d[" + plg.getName() + "]§f 討伐ボーナスアイテム ["+i.getType().name()+"] x " + i.getAmount() + "獲得しました");
+            player.sendMessage("§d[" + plg.getName() + "]§f 討伐ボーナスアイテム [" + i.getType().name() + "] x " + i.getAmount() + "獲得しました");
         }
-        p.getInventory().addItem(i);
+        player.getInventory().addItem(i);
     }
-    
+
     /**
      * 賞状進呈処理
-     * @param p 表彰プレイヤー
-     * @param i 賞状インスタンス
+     *
+     * @param player 表彰プレイヤー
+     * @param itemStack 賞状インスタンス
      */
-    private void presentItem(Player p, ItemStack i) {
-        p.getInventory().addItem(i);
-        p.sendMessage("§d[" + plg.getName() + "]§f 討伐ボーナスアイテム [エンドラ討伐ランキング賞状] 獲得しました");
+    private void presentItem(Player player, ItemStack itemStack) {
+        player.getInventory().addItem(itemStack);
+        player.sendMessage("§d[" + plg.getName() + "]§f 討伐ボーナスアイテム [エンドラ討伐ランキング賞状] 獲得しました");
     }
 
     public void setFirst() {
         first = false;
     }
+
     /**
      * エンドラランキング開始処理
-     * @param w 開始ワールド名
+     *
+     * @param world 開始ワールド名
      * @return 開始結果
      */
-    public boolean startEnderDragonRanking (World w, boolean force) {
-        
+    public boolean startEnderDragonRanking(World world, boolean force) {
+
         // 開始済みであれば何もしない
         if (curWorld != null) {
             if (force) {
@@ -999,17 +984,17 @@ public class RankingListener extends ListenerFrame {
             log.info("一回終了済み");
             return false;
         }
-        
+
         // 開始条件チェック
-        if ((force) || checkEnderDragon(w)) {
-            curWorld = w;
+        if ((force) || checkEnderDragon(world)) {
+            curWorld = world;
             round = conf.getInt("roundmax");
-            ranking.clear();
+            ecoDragonUserList.clearMap();
             intervalList.clear();
-            w.setDifficulty(Difficulty.HARD);
-            w.setPVP(true);
-            w.setGameRule(GameRule.KEEP_INVENTORY, true);
-            
+            world.setDifficulty(Difficulty.HARD);
+            world.setPVP(true);
+            world.setGameRule(GameRule.KEEP_INVENTORY, true);
+
             // タイマ起動
             for (TimerFrame tm : pvptimer.values()) {
                 tm.cancel();
@@ -1022,27 +1007,29 @@ public class RankingListener extends ListenerFrame {
             timer = new WorldTimer(plg, this);
             timer.runTaskTimer(plg, 0, 200);
             evtimer.add(timer);
-            
+
             // スコアボード初期化
             resetScoreboard();
-            
+
             roundMessage();
             return true;
         }
-        
+
         return false;
     }
 
     /**
      * エンドラ戦強制終了処理
+     *
      * @return 終了結果
      */
     public boolean abortEnderDragonRanking() {
         return endEnderDragonRanking();
     }
-    
+
     /**
      * エンドラランキング終了処理
+     *
      * @return 終了結果
      */
     private boolean endEnderDragonRanking() {
@@ -1074,19 +1061,35 @@ public class RankingListener extends ListenerFrame {
         }
         pvptimer.clear();
         EndEventTimer e = null;
-        e = new EndEventTimer(plg, "1200 tick後に World:" + curWorld.getName() + " のエンドラ戦後処理を開始します"); e.runTaskLater(plg, 1); evtimer.add(e);
-        e = new EndEventTimer(plg, "1000 tick後に World:" + curWorld.getName() + " のエンドラ戦後処理を開始します"); e.runTaskLater(plg, 200); evtimer.add(e);
-        e = new EndEventTimer(plg, "800 tick後に World:" + curWorld.getName() + " のエンドラ戦後処理を開始します"); e.runTaskLater(plg, 400); evtimer.add(e);
-        e = new EndEventTimer(plg, "600 tick後に World:" + curWorld.getName() + " のエンドラ戦後処理を開始します"); e.runTaskLater(plg, 600); evtimer.add(e);
-        e = new EndEventTimer(plg, "400 tick後に World:" + curWorld.getName() + " のエンドラ戦後処理を開始します"); e.runTaskLater(plg, 800); evtimer.add(e);
-        e = new EndEventTimer(plg, "200 tick後に World:" + curWorld.getName() + " のエンドラ戦後処理を開始します"); e.runTaskLater(plg, 1000); evtimer.add(e);
-        e = new EndEventTimer(plg, "World:" + curWorld.getName() + " のKeepInventoryを解除しました。", curWorld); e.runTaskLater(plg, 1200); evtimer.add(e);
-    
+        e = new EndEventTimer(plg, "1200 tick後に World:" + curWorld.getName() + " のエンドラ戦後処理を開始します");
+        e.runTaskLater(plg, 1);
+        evtimer.add(e);
+        e = new EndEventTimer(plg, "1000 tick後に World:" + curWorld.getName() + " のエンドラ戦後処理を開始します");
+        e.runTaskLater(plg, 200);
+        evtimer.add(e);
+        e = new EndEventTimer(plg, "800 tick後に World:" + curWorld.getName() + " のエンドラ戦後処理を開始します");
+        e.runTaskLater(plg, 400);
+        evtimer.add(e);
+        e = new EndEventTimer(plg, "600 tick後に World:" + curWorld.getName() + " のエンドラ戦後処理を開始します");
+        e.runTaskLater(plg, 600);
+        evtimer.add(e);
+        e = new EndEventTimer(plg, "400 tick後に World:" + curWorld.getName() + " のエンドラ戦後処理を開始します");
+        e.runTaskLater(plg, 800);
+        evtimer.add(e);
+        e = new EndEventTimer(plg, "200 tick後に World:" + curWorld.getName() + " のエンドラ戦後処理を開始します");
+        e.runTaskLater(plg, 1000);
+        evtimer.add(e);
+        e = new EndEventTimer(plg, "World:" + curWorld.getName() + " のKeepInventoryを解除しました。", curWorld);
+        e.runTaskLater(plg, 1200);
+        evtimer.add(e);
+
         // スコアボード破棄
-        e = new EndEventTimer(plg, "ランキングスコアボードを破棄しました。", board, dmgobj); e.runTaskLater(plg, 1200); evtimer.add(e);
+        e = new EndEventTimer(plg, "ランキングスコアボードを破棄しました。", board, dmgobj);
+        e.runTaskLater(plg, 1200);
+        evtimer.add(e);
 
         curWorld = null;
-        
+
         return false;
     }
 
@@ -1103,22 +1106,22 @@ public class RankingListener extends ListenerFrame {
         dmgobj = board.registerNewObjective("damage", Criteria.TEAM_KILL_YELLOW, "dummy");
         dmgobj.setDisplayName("エンドラ討伐貢献度");
         dmgobj.setDisplaySlot(DisplaySlot.SIDEBAR);
-        
-        for (Player p: plg.getServer().getOnlinePlayers()) {
-            setScoreboard(p, true);
+
+        for (Player player : plg.getServer().getOnlinePlayers()) {
+            setScoreboard(player, true);
         }
     }
 
     /**
      * スコアボード設定処理
      */
-    public void setScoreboard(Player p, boolean flag) {
-        if (p.hasPermission("ecodragon.board")) {
+    public void setScoreboard(Player player, boolean flag) {
+        if (player.hasPermission("ecodragon.board")) {
             if (flag) {
-                p.setScoreboard(board);
+                player.setScoreboard(board);
             } else {
-                if (p.getScoreboard().equals(board)) {
-                    p.setScoreboard(plg.getServer().getScoreboardManager().getMainScoreboard());
+                if (player.getScoreboard().equals(board)) {
+                    player.setScoreboard(plg.getServer().getScoreboardManager().getMainScoreboard());
                 }
             }
         }
@@ -1126,183 +1129,114 @@ public class RankingListener extends ListenerFrame {
 
     /**
      * エンドラランキング開始条件チェック処理
-     * @param w ワールド名
+     *
+     * @param world ワールド名
      * @return 開始可否
      */
-    private boolean checkEnderDragon(World w) {
+    private boolean checkEnderDragon(World world) {
         // ランキング開始済みであれば本メソッドはコールしないこと
-        
+
         // 指定ワールドがエンドラランキング対象かチェック
-        if (!w.getName().toLowerCase().startsWith(conf.getString("worldprefix").toLowerCase())) {
+        if (!world.getName().toLowerCase().startsWith(conf.getString("worldprefix").toLowerCase())) {
             return false;
         }
 
         // 未実施か？
         ArrayList<String> list = (ArrayList<String>) conf.getArrayList("stopworld");
-        if (list.contains(w.getName())) {
+        if (list.contains(world.getName())) {
             return false;
         }
-        
+
         // エンドラチェック
-        log.info("EnderDragonCheck["+w.getName()+"]");
-        for (Entity ent : w.getEntities()) {
+        log.info("EnderDragonCheck[" + world.getName() + "]");
+        for (Entity ent : world.getEntities()) {
             if (ent.getType() == EntityType.ENDER_DRAGON) {
                 return true;
             }
         }
-        for (LivingEntity ent : w.getLivingEntities()) {
+        for (LivingEntity ent : world.getLivingEntities()) {
             if (ent.getType() == EntityType.ENDER_DRAGON) {
                 return true;
             }
         }
         log.info("unhit:EnderDragon");
-        
+
         return false;
     }
 
     /**
      * ランキングデータ取得処理
-     * @return 
+     *
+     * @return
      */
     @SuppressWarnings("unchecked")
-	public ArrayList getRankList() {
-        ArrayList entries = new ArrayList(ranking.entrySet());
-        Collections.sort(entries, new Comparator(){
-            public int compare(Object obj1, Object obj2){
-                Map.Entry ent1 =(Map.Entry)obj1;
-                Map.Entry ent2 =(Map.Entry)obj2;
-                EcoDragonUser val1 = (EcoDragonUser) ent1.getValue();
-                EcoDragonUser val2 = (EcoDragonUser) ent2.getValue();
+    public ArrayList getRankList() {
+        ArrayList entries = new ArrayList(ecoDragonUserList.getEcoDragonPlayerMap().entrySet());
+        Collections.sort(entries, new Comparator() {
+            public int compare(Object obj1, Object obj2) {
+                Map.Entry ent1 = (Map.Entry) obj1;
+                Map.Entry ent2 = (Map.Entry) obj2;
+                EcoDragonPlayer val1 = (EcoDragonPlayer) ent1.getValue();
+                EcoDragonPlayer val2 = (EcoDragonPlayer) ent2.getValue();
                 return (val2.getPoint()) - (val1.getPoint());
             }
         });
         return entries;
     }
+
     public void addPoint(Player p, int i) {
-        if (ranking.containsKey(p.getName())) {
-            ranking.get(p.getName()).addPoint(i);
-        } else {
-            EcoDragonUser user = new EcoDragonUser(p);
-            user.addPoint(i);
-            ranking.put(p.getName(), user);
-        }
+        EcoDragonPlayer ecoDragonPlayer = ecoDragonUserList.getEcoDragonPlayer(p);
+        ecoDragonPlayer.addPoint(i);
     }
-    
+
     public boolean isRanking() {
         return (curWorld != null);
     }
+
     public World getWorld() {
         return curWorld;
     }
-    @EventHandler
-    private void EndUpdateDamage(EntityDamageByEntityEvent event) {
-        if (curWorld == null) {
-//            log.info("worldなし");
-            return;
-        }
-        if (!event.getEntity().getWorld().getName().equals(curWorld.getName())) {
-//            log.info("world違い");
-            return;
-        }
-        // ダメージリストに加算
-        if (event.getDamager() == null) return;
-        Player player = null;
-        try {
-        // 各Entityタイプごとに攻撃ユーザーを抽出
-        if (event.getDamager().getType() == EntityType.PLAYER) {
-             player = (Player) event.getDamager();
-            //m.info("PlayerDamage:" + player.getName());
-        } else if (event.getDamager().getType() == EntityType.ARROW) {
-            Arrow arrow = (Arrow) event.getDamager();
-//            if (arrow.getShooter().getType() != EntityType.PLAYER) return;
-            player = (Player) arrow.getShooter();
-            //m.info("ArrowDamage:" + player.getName());
-        } else if (event.getDamager().getType() == EntityType.SNOWBALL) {
-            Snowball ball = (Snowball) event.getDamager();
-//            if (ball.getShooter().getType() != EntityType.PLAYER) return;
-            player = (Player) ball.getShooter();
-            //m.info("SnowballDamage:" + player.getName());
-        } else if (event.getDamager().getType() == EntityType.EGG) {
-            Egg egg = (Egg) event.getDamager();
-//            if (egg.getShooter().getType() != EntityType.PLAYER) return;
-            player = (Player) egg.getShooter();
-            //m.info("EggDamage:" + player.getName());
-        } else if (event.getDamager().getType() == EntityType.SPLASH_POTION) {
-            ThrownPotion potion = (ThrownPotion) event.getDamager();
-//            if (potion.getShooter().getType() != EntityType.PLAYER) return;
-            player = (Player) potion.getShooter();
-            //m.info("PotionDamage:" + player.getName());
-        }
-        } catch (Exception e) {
-            return;
-        }
-        // 攻撃ユーザーが確定している場合のみ集計
-        if (player == null) return;
-        // 相手もPlayerの場合PvPフラグをチェックする
-        if (event.getEntity().getType() == EntityType.PLAYER) {
-            Player p = (Player) event.getEntity();
-            Player d = player;
-            if ((!isPlayerPvP(p)) ||
-                (!isPlayerPvP(d))){
-                event.setCancelled(true);
-                log.info("PvP無効化1");
-                return;
-            }
-        }
-        EcoDragonUser damage = ranking.get(player.getName());
-        if (damage == null) {
-            damage = new EcoDragonUser(player);
-            ranking.put(player.getName(), damage);
-            //m.info("AddDamageList:" + player.getName());
-        }
-        if (event.getEntityType() == EntityType.ENDER_DRAGON) {
-            damage.addDamage((int)event.getDamage());
-            //lasthp = ((EnderDragon)event.getEntity()).getHealth();
-        } else {
-            damage.addDamageEtc((int)event.getDamage());
-        }
-        refreshScoreBoard();
-    }
-    
+
+
     public void refreshScoreBoard() {
-        for (EcoDragonUser rankUser : ranking.values()) {
-            dmgobj.getScore(rankUser.getPlayer().getName()).setScore(rankUser.getPoint());
+        for (EcoDragonPlayer rankUser : ecoDragonUserList.getEcoDragonPlayerMap().values()) {
+            dmgobj.getScore(rankUser.getName()).setScore(rankUser.getPoint());
         }
     }
 
-    public void setPlayerPvP(Player p, boolean pvp_) {
-        if (ranking.containsKey(p.getName())) {
-            ranking.get(p.getName()).setPvP(pvp_);
-        } else {
-            EcoDragonUser u = new EcoDragonUser(p);
-            u.setPvP(pvp_);
-            ranking.put(p.getName(), u);
-        }
+    public void setPlayerPvP(Player player, boolean pvp_) {
+        EcoDragonPlayer ecoDragonPlayer = ecoDragonUserList.getEcoDragonPlayer(player);
+        UUID uuid = player.getUniqueId();
+        ecoDragonPlayer.setPvP(pvp_);
         if (pvp_) {
-            if (pvptimer.containsKey(p)) {
-                pvptimer.get(p).cancel();
-                pvptimer.remove(p);
+            if (pvptimer.containsKey(uuid)) {
+                pvptimer.get(uuid).cancel();
+                pvptimer.remove(uuid);
             }
 
-            EndPvPTimer t = new EndPvPTimer(plg, p);
+            EndPvPTimer t = new EndPvPTimer(plg, player);
             t.runTaskTimer(plg, 0, 20 * 5);
-            pvptimer.put(p, t);
+            pvptimer.put(uuid, t);
         } else {
-            if (pvptimer.containsKey(p)) {
-                pvptimer.get(p).cancel();
-                pvptimer.remove(p);
+            if (pvptimer.containsKey(uuid)) {
+                pvptimer.get(uuid).cancel();
+                pvptimer.remove(uuid);
             }
         }
         return;
     }
-    public boolean isExistPlayer(Player p) {
-        return ranking.containsKey(p.getName());
+
+    public boolean isExistPlayer(Player player) {
+        return ecoDragonUserList.ContainsEcoDragonUser(player);
     }
-    public boolean isPlayerPvP(Player p) {
+
+    public boolean isPlayerPvP(Player player) {
         boolean result = false;
-        if (ranking.containsKey(p.getName())) {
-            result = ranking.get(p.getName()).isPvP();
-        }
+        result = ecoDragonUserList.getEcoDragonPlayer(player).isPvP();
         return result;
+    }
+
+    public boolean checkCanPVP(Player attacker, Player target) {
+        return isPlayerPvP(attacker) && isPlayerPvP(target);
     }
 }
