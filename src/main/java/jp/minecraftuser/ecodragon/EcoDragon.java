@@ -15,6 +15,7 @@ import jp.minecraftuser.ecodragon.listener.DragonEggListener;
 import jp.minecraftuser.ecodragon.listener.LightWeightListener;
 import jp.minecraftuser.ecodragon.listener.PowerDragonListener;
 import jp.minecraftuser.ecodragon.listener.RankingListener;
+import jp.minecraftuser.ecodragon.timer.PhantomSpawner;
 import jp.minecraftuser.ecoframework.PluginFrame;
 import jp.minecraftuser.ecoframework.CommandFrame;
 import jp.minecraftuser.ecoframework.ConfigFrame;
@@ -25,12 +26,15 @@ import jp.minecraftuser.ecoframework.ConfigFrame;
  */
 public class EcoDragon extends PluginFrame {
     
+    PhantomSpawner timer;
     /**
      * プラグイン起動
      */
     @Override
     public void onEnable() {
         initialize();
+        timer = new PhantomSpawner(this);
+        timer.runTaskTimer(this, 200, 200);
     }
 
     /**
@@ -39,6 +43,7 @@ public class EcoDragon extends PluginFrame {
     @Override
     public void onDisable()
     {
+        timer.cancel();
         disable();
     }
 
