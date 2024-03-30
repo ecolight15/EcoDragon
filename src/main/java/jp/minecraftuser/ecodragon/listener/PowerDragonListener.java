@@ -423,6 +423,7 @@ public class PowerDragonListener extends ListenerFrame {
                     if (ent.getType() == EntityType.WITHER) ent.remove();
                     if (ent.getType() == EntityType.ZOMBIE) ent.remove();
                     if (ent.getType() == EntityType.STRAY) ent.remove();
+                    if (ent.getType() == EntityType.PHANTOM) ent.remove();
                     if (ent.getType() == EntityType.WITHER_SKELETON) ent.remove();
                     if (ent.getType() == EntityType.SKELETON) ent.remove();
                 }   bossdamage = false;
@@ -574,10 +575,10 @@ public class PowerDragonListener extends ListenerFrame {
         sub.getEquipment().setLeggings(addDefEnchant(new ItemStack(Material.DIAMOND_LEGGINGS)));
         sub.getEquipment().setLeggingsDropChance(0.001f);
         // ステータス
-        ent.setCanPickupItems(false);
-        ent.setCustomName("闇の眷属(飛弓)");
-        ent.setCustomNameVisible(true);
-        ent.setRemoveWhenFarAway(false);
+        sub.setCanPickupItems(false);
+        sub.setCustomName("闇の眷属(飛弓)");
+        sub.setCustomNameVisible(true);
+        sub.setRemoveWhenFarAway(false);
 
         PotionEffect p = new PotionEffect(PotionEffectType.SPEED, 20*60*60*24*7*5, 5);
         ent.addPotionEffect(p);

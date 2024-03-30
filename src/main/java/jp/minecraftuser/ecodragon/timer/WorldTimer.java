@@ -10,6 +10,7 @@ import java.time.LocalDate;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.entity.Phantom;
 import org.bukkit.entity.Player;
 
 
@@ -44,7 +45,8 @@ public class WorldTimer extends TimerFrame {
                                     loc.setY(loc.getY() - 4);
                                 }
                             }
-                            listener.spawnPhantom(p, loc, 1200);
+                            Phantom phantom = listener.spawnPhantom(p, loc, 1200);
+                            new PhantomBooster(plg, phantom, p).runTaskTimer(plg, 40, 5);
                         }
                     }
                 }
