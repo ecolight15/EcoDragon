@@ -1,6 +1,5 @@
 package jp.minecraftuser.ecodragon.timer;
 
-import jp.minecraftuser.ecodragon.listener.RankingListener;
 import jp.minecraftuser.ecoframework.PluginFrame;
 import jp.minecraftuser.ecoframework.TimerFrame;
 

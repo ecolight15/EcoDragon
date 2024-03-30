@@ -8,4 +8,5 @@ fishing-bonus: 2000
 fishing-salmon-bonus: 6000
 fishing-clownfish-bonus: 100000
 fishing-pufferfish-bonus: 12000
+before-world-border: 1000
 stopworld: []

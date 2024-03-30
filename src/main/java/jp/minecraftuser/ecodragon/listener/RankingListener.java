@@ -100,6 +100,7 @@ public class RankingListener extends ListenerFrame {
     private static long lastInterval = 0;
     private static WorldTimer timer = null;
     private static boolean first = false;
+    private static int gateReleaseinterval = 300; // 5 min 
 
     /**
      * コンストラクタ
@@ -136,7 +137,7 @@ public class RankingListener extends ListenerFrame {
             }
             sendPluginMessage(plg, p, "強化エンダードラゴン戦が開催されています");
             sendPluginMessage(plg, p, "あと " + round + " 回エンダードラゴンを討伐するとエンドゲートウェイの転送が開放されます");
-            sendPluginMessage(plg, p, "エンドゲートウェイの開放は個人ごとに (ランキング順位 * 30秒) のインターバルを要します");
+            sendPluginMessage(plg, p, "エンドゲートウェイの開放は個人ごとに (ランキング順位 * " + gateReleaseinterval + "秒) のインターバルを要します");
             this.plg.getServer().dispatchCommand(this.plg.getServer().getConsoleSender(), "tellraw " + p.getName() + " [\"\",{\"text\":\"\\u30e9\\u30f3\\u30ad\\u30f3\\u30b0\\u78ba\\u8a8d\\u306f \"},{\"text\":\"/ecd rank\",\"bold\":true,\"underlined\":true,\"color\":\"yellow\",\"clickEvent\":{\"action\":\"run_command\",\"value\":\"/ecd rank\"}}]");
             this.plg.getServer().dispatchCommand(this.plg.getServer().getConsoleSender(), "tellraw " + p.getName() + " [\"\",{\"text\":\"\\u30b9\\u30b3\\u30a2\\u30dc\\u30fc\\u30c9\\u306e\\u975e\\u8868\\u793a\\u306f \"},{\"text\":\"/ecd rank false\",\"bold\":true,\"underlined\":true,\"color\":\"yellow\",\"clickEvent\":{\"action\":\"run_command\",\"value\":\"/ecd rank false\"}}]");
         }
@@ -198,10 +199,11 @@ public class RankingListener extends ListenerFrame {
         if (intervalList.isEmpty()) {
             // ワールド境界の状態をチェック(直径1000の場合、未拡張なので抑止する)
             WorldBorder wb = w.getWorldBorder();
-            if (wb.getSize() == 1000) {
+            if (wb.getSize() == conf.getInt("before-world-border")) {
                 sendPluginMessage(plg, player, "強化エンダードラゴンが規定回数攻略されるまでエンドゲートウェイの使用は抑止されます");
                 event.setCancelled(true);
             }
+            sendPluginMessage(plg, player, "現在エンドシティでのエリトラの使用は全面抑止されているのでご注意ください");
             return;
         }
 
@@ -209,6 +211,7 @@ public class RankingListener extends ListenerFrame {
         Date now = new Date();
         if (lastInterval < now.getTime()) {
             intervalList.clear();
+            sendPluginMessage(plg, player, "現在エンドシティでのエリトラの使用は全面抑止されているのでご注意ください");
             return;
         }
 
@@ -222,6 +225,7 @@ public class RankingListener extends ListenerFrame {
             } else {
                 // 到達
                 intervalList.remove(player.getUniqueId());
+                sendPluginMessage(plg, player, "現在エンドシティでのエリトラの使用は全面抑止されているのでご注意ください");
             }
         } else {
             // インターバルテーブルに登録がない場合は空になるまで待つ
@@ -271,7 +275,7 @@ public class RankingListener extends ListenerFrame {
         if (!player.getWorld().equals(curWorld)) return;
 
         // 死亡メッセージ無し
-        event.setDeathMessage(null);
+        //event.setDeathMessage(null);
 
         // PvPでの死亡の場合、ランキングポイントを半分譲渡する
         Player killerPlayer = player.getKiller();
@@ -763,7 +767,7 @@ public class RankingListener extends ListenerFrame {
         if (round == conf.getInt("roundmax")) {
             plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f 強化エンダードラゴン戦が開始されました");
             plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f あと " + round + " 回エンダードラゴンを討伐するとエンドゲートウェイの転送が開放されます。");
-            plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f エンドゲートウェイの開放は個人ごとに (ランキング順位 * 30秒) のインターバルを要します");
+            plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f エンドゲートウェイの開放は個人ごとに (ランキング順位 * " + gateReleaseinterval + "秒) のインターバルを要します");
             for (Player pl : plg.getServer().getOnlinePlayers()) {
                 this.plg.getServer().dispatchCommand(this.plg.getServer().getConsoleSender(), "tellraw " + pl.getName() + " [\"\",{\"text\":\"\\u30e9\\u30f3\\u30ad\\u30f3\\u30b0\\u78ba\\u8a8d\\u306f \"},{\"text\":\"/ecd rank\",\"bold\":true,\"underlined\":true,\"color\":\"yellow\",\"clickEvent\":{\"action\":\"run_command\",\"value\":\"/ecd rank\"}}]");
                 this.plg.getServer().dispatchCommand(this.plg.getServer().getConsoleSender(), "tellraw " + pl.getName() + " [\"\",{\"text\":\"\\u30b9\\u30b3\\u30a2\\u30dc\\u30fc\\u30c9\\u306e\\u975e\\u8868\\u793a\\u306f \"},{\"text\":\"/ecd rank false\",\"bold\":true,\"underlined\":true,\"color\":\"yellow\",\"clickEvent\":{\"action\":\"run_command\",\"value\":\"/ecd rank false\"}}]");
@@ -772,12 +776,12 @@ public class RankingListener extends ListenerFrame {
             // ラウンド継続中の場合
             plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f あと " + round + " 回エンダードラゴンを討伐するとエンドゲートウェイの転送が開放されます。");
             plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f エンダードラゴンの復活は自動的には行われませんのでご注意ください");
-            plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f エンドゲートウェイの開放は個人ごとに (ランキング順位 * 30秒) のインターバルを要します");
+            plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f エンドゲートウェイの開放は個人ごとに (ランキング順位 * " + gateReleaseinterval + "秒) のインターバルを要します");
         } else {
             // 最終ラウンド後の場合
             plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f 強化エンダードラゴン戦が終了しました");
             plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f エンドゲートウェイの転送が順次開放されます。");
-            plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f エンドゲートウェイの開放は個人ごとに (ランキング順位 * 30秒) のインターバルを要します");
+            plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f エンドゲートウェイの開放は個人ごとに (ランキング順位 * " + gateReleaseinterval + "秒) のインターバルを要します");
         }
     }
 
@@ -800,7 +804,7 @@ public class RankingListener extends ListenerFrame {
             for (int rank = 1; rank <= entries.size(); rank++) {
                 EcoDragonPlayer rankUser = (EcoDragonPlayer) ((Map.Entry) entries.get(rank - 1)).getValue();
                 totalPoint += rankUser.getPoint();
-                lastInterval = cur + rank * 30000;
+                lastInterval = cur + rank * gateReleaseinterval * 1000; // interval 5 min
                 intervalList.put(rankUser.getPlayer().getUniqueId(), lastInterval);
             }
             // 個々人のランキング表彰、アイテム進呈

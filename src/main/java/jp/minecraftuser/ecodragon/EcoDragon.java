@@ -16,6 +16,7 @@ import jp.minecraftuser.ecodragon.listener.LightWeightListener;
 import jp.minecraftuser.ecodragon.listener.PowerDragonListener;
 import jp.minecraftuser.ecodragon.listener.RankingListener;
 import jp.minecraftuser.ecodragon.timer.PhantomSpawner;
+import jp.minecraftuser.ecodragon.timer.SpaceBoundary;
 import jp.minecraftuser.ecoframework.PluginFrame;
 import jp.minecraftuser.ecoframework.CommandFrame;
 import jp.minecraftuser.ecoframework.ConfigFrame;
@@ -27,6 +28,7 @@ import jp.minecraftuser.ecoframework.ConfigFrame;
 public class EcoDragon extends PluginFrame {
     
     PhantomSpawner timer;
+    SpaceBoundary space;
     /**
      * プラグイン起動
      */
@@ -35,6 +37,8 @@ public class EcoDragon extends PluginFrame {
         initialize();
         timer = new PhantomSpawner(this);
         timer.runTaskTimer(this, 200, 200);
+        space = new SpaceBoundary(this);
+        space.runTaskTimer(this, 0, 5);
     }
 
     /**
@@ -64,6 +68,7 @@ public class EcoDragon extends PluginFrame {
         conf.registerInt("fishing-salmon-bonus");
         conf.registerInt("fishing-clownfish-bonus");
         conf.registerInt("fishing-pufferfish-bonus");
+        conf.registerInt("before-world-border");
         conf.registerArrayString("stopworld");
         registerPluginConfig(conf);
         // 賞状

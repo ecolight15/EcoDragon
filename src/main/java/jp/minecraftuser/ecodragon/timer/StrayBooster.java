@@ -39,21 +39,31 @@ public class StrayBooster extends TimerFrame {
             this.cancel();
             return;
         }
+        RankingListener lisn = (RankingListener) plg.getPluginListener("ranking");
         Vector v = stray.getVelocity();
         for (Player p : plg.getServer().getOnlinePlayers()) {
             if (p.getUniqueId().equals(uuid)) {
                 Location loc = p.getLocation();
 
                 //プレイヤーのファントムの位置を取得して、ファントムがプレイヤーの方向に進むようにベクトルを与える
-                Vector v2 = p.getLocation().toVector().subtract(stray.getLocation().toVector()).normalize();
-                v2 = v2.multiply(5);
+                Vector v2 = loc.toVector().subtract(stray.getLocation().toVector()).normalize();
+                if (lisn.isRanking()) {
+                    v2 = v2.multiply(5);
+                } else {
+                    v2 = v2.multiply(3);
+                }
 
                 Arrow arrow = stray.launchProjectile(Arrow.class, v2);
-                arrow.setDamage(10);
+                if (lisn.isRanking()) {
+                    arrow.setDamage(5);
+                    arrow.setKnockbackStrength(5);
+                } else {
+                    arrow.setDamage(1);
+                    arrow.setKnockbackStrength(1);
+                }
                 arrow.setGlowing(true);
                 arrow.setCritical(true);
                 arrow.setShooter(stray);
-                arrow.setKnockbackStrength(10);
                 arrow.setCustomName("眷属の矢");
                 arrow.setPickupStatus(PickupStatus.CREATIVE_ONLY);
                 new TimerFrame(plg, "allow"){

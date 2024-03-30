@@ -363,7 +363,7 @@ public class PowerDragonListener extends ListenerFrame {
                         Zombie ent = spawnZombie(event.getEntity());
                         ent.setTarget(monsterTargetPlayer);
                     } else if (hp > 40) {   // HPが20%以上の場合のMOB
-                        Phantom ent = spawnPhantom((Player) event.getEntity(), event.getEntity().getLocation(), 0);
+                        Phantom ent = spawnPhantom((Player) event.getEntity(), event.getEntity().getLocation(), 0, 3);
                         ent.setTarget(monsterTargetPlayer);
                     } else if (hp > 20) {   // HPが20%以上の場合のMOB
                         WitherSkeleton ent = spawnWitherSkeleton(event.getEntity());
@@ -545,7 +545,7 @@ public class PowerDragonListener extends ListenerFrame {
         return ent;
     }
 
-    public Phantom spawnPhantom(LivingEntity target, Location loc, int killTimer) {
+    public Phantom spawnPhantom(LivingEntity target, Location loc, int killTimer, int level) {
         Phantom ent = (Phantom) loc.getWorld().spawnEntity(loc, EntityType.PHANTOM);
         Stray sub = (Stray)loc.getWorld().spawnEntity(loc, EntityType.STRAY);
 
@@ -560,9 +560,14 @@ public class PowerDragonListener extends ListenerFrame {
         ent.setTarget(target);
 
         ItemStack bow = new ItemStack(Material.BOW);
-        bow.addUnsafeEnchantment(Enchantment.ARROW_DAMAGE, 10);
-        bow.addUnsafeEnchantment(Enchantment.ARROW_KNOCKBACK, 5);
-        bow.addUnsafeEnchantment(Enchantment.ARROW_FIRE, 5);
+        if (level > 0) {
+            bow.addUnsafeEnchantment(Enchantment.ARROW_DAMAGE, level);
+            bow.addUnsafeEnchantment(Enchantment.ARROW_KNOCKBACK, level);
+            bow.addUnsafeEnchantment(Enchantment.ARROW_FIRE, level);
+        } else {
+            bow.addUnsafeEnchantment(Enchantment.ARROW_KNOCKBACK, 1);
+            bow.addUnsafeEnchantment(Enchantment.ARROW_FIRE, 1);
+        }
         sub.getEquipment().setItemInMainHand(addShotEnchant(bow));
         sub.getEquipment().setItemInMainHandDropChance(0.001f);
         sub.getEquipment().setBoots(addDefEnchant(new ItemStack(Material.DIAMOND_BOOTS)));
