@@ -5,8 +5,6 @@ import jp.minecraftuser.ecodragon.listener.PowerDragonListener;
 import jp.minecraftuser.ecodragon.listener.RankingListener;
 import jp.minecraftuser.ecoframework.TimerFrame;
 
-import static jp.minecraftuser.ecoframework.Utl.sendPluginMessage;
-
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -14,7 +12,6 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Phantom;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Stray;
-
 
 public class PhantomSpawner extends TimerFrame {
     public PhantomSpawner(PluginFrame plg) {

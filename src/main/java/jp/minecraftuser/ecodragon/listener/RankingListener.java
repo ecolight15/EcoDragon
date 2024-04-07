@@ -20,6 +20,7 @@ import jp.minecraftuser.ecoframework.PluginFrame;
 import jp.minecraftuser.ecodragon.config.CertificateConfig;
 import jp.minecraftuser.ecodragon.timer.EndEventTimer;
 import jp.minecraftuser.ecodragon.timer.EndPvPTimer;
+import jp.minecraftuser.ecodragon.timer.GatewayAnnounce;
 import jp.minecraftuser.ecodragon.timer.WorldTimer;
 import jp.minecraftuser.ecoframework.ListenerFrame;
 import jp.minecraftuser.ecoframework.TimerFrame;
@@ -221,10 +222,10 @@ public class RankingListener extends ListenerFrame {
             if (intervalList.get(player.getUniqueId()) > now.getTime()) {
                 // まだ未達
                 event.setCancelled(true);
-                player.sendMessage("[" + plg.getName() + "] " + sdf.format(new Date(intervalList.get(player.getUniqueId()))));
+                player.sendMessage("[" + plg.getName() + "] 現在のサーバー時刻 " + sdf.format(new Date()));
+                player.sendMessage("[" + plg.getName() + "] エンドゲートウェイ開放目安 " + sdf.format(new Date(intervalList.get(player.getUniqueId()))));
             } else {
                 // 到達
-                intervalList.remove(player.getUniqueId());
                 sendPluginMessage(plg, player, "現在エンドシティでのエリトラの使用は全面抑止されているのでご注意ください");
             }
         } else {
@@ -387,10 +388,10 @@ public class RankingListener extends ListenerFrame {
                     xx.setX(xx.getX() + 1);
                     z.setZ(z.getZ() - 1);
                     zz.setZ(zz.getZ() + 1);
-                    if (((x.getBlock().getType() == Material.BEDROCK) && (xx.getBlock().getType() == Material.BEDROCK) &&
-                            (z.getBlock().getType() != Material.BEDROCK) && (zz.getBlock().getType() != Material.BEDROCK)) ||
-                            ((z.getBlock().getType() == Material.BEDROCK) && (zz.getBlock().getType() == Material.BEDROCK) &&
-                                    (x.getBlock().getType() != Material.BEDROCK) && (xx.getBlock().getType() != Material.BEDROCK))) {
+                    if ((((x.getBlock().getType() == Material.BEDROCK) || (xx.getBlock().getType() == Material.BEDROCK)) &&
+                         (z.getBlock().getType() != Material.BEDROCK) && (zz.getBlock().getType() != Material.BEDROCK)) ||
+                        (((z.getBlock().getType() == Material.BEDROCK) || (zz.getBlock().getType() == Material.BEDROCK)) &&
+                         (x.getBlock().getType() != Material.BEDROCK) && (xx.getBlock().getType() != Material.BEDROCK))) {
                         Bukkit.getScheduler().runTask(plg, new Runnable() {
                             @Override
                             public void run() {
@@ -401,7 +402,25 @@ public class RankingListener extends ListenerFrame {
                                         Block belowCrystal = crystal.getLocation().getBlock().getRelative(BlockFace.DOWN);
                                         if (event.getClickedBlock().equals(belowCrystal)) {
                                             if (!existCrystal.contains(belowCrystal)) {
+                                                // 中心のブロックと2つとなりのブロックまでクリスタル設置済みとしてマークしておく
                                                 existCrystal.add(belowCrystal);
+                                                Block buf = belowCrystal.getRelative(BlockFace.NORTH);
+                                                existCrystal.add(buf);
+                                                buf = buf.getRelative(BlockFace.NORTH);
+                                                existCrystal.add(buf);
+                                                buf = belowCrystal.getRelative(BlockFace.SOUTH);
+                                                existCrystal.add(buf);
+                                                buf = buf.getRelative(BlockFace.SOUTH);
+                                                existCrystal.add(buf);
+                                                buf = belowCrystal.getRelative(BlockFace.EAST);
+                                                existCrystal.add(buf);
+                                                buf = buf.getRelative(BlockFace.EAST);
+                                                existCrystal.add(buf);
+                                                buf = belowCrystal.getRelative(BlockFace.WEST);
+                                                existCrystal.add(buf);
+                                                buf = buf.getRelative(BlockFace.WEST);
+                                                existCrystal.add(buf);
+
                                                 // 別スレッドで実行する系列はgetPlayerでサーバーから改めて取得
                                                 EcoDragonPlayer ecoDragonPlayer = ecoDragonUserList.getEcoDragonPlayer(player);
                                                 int bonus = conf.getInt("crystal-place-bonus");
@@ -521,6 +540,39 @@ public class RankingListener extends ListenerFrame {
                     }
                 }
                 if (dragonExist) {
+                    // 塔のエンドクリスタル以外は無視する
+                    Location crLoc = event.getEntity().getLocation();
+                    if (crLoc.getBlock().getType() != Material.FIRE) {
+                        log.info("top:"+crLoc.getBlock().getType());
+                        return;
+                    }
+                    crLoc.setY(crLoc.getY() - 1);
+                    if (crLoc.getBlock().getType() != Material.BEDROCK) {
+                        log.info("down:"+crLoc.getBlock().getType());
+                        return;
+                    }
+                    if (crLoc.getBlock().getRelative(BlockFace.EAST).getType() == Material.BEDROCK) {
+                        log.info("x+:"+crLoc.getBlock().getRelative(BlockFace.EAST).getType());
+                        return;
+                    }
+                    if (crLoc.getBlock().getRelative(BlockFace.WEST).getType() == Material.BEDROCK) {
+                        log.info("x-:"+crLoc.getBlock().getRelative(BlockFace.WEST).getType());
+                        return;
+                    }
+                    if (crLoc.getBlock().getRelative(BlockFace.SOUTH).getType() == Material.BEDROCK) {
+                        log.info("z+:"+crLoc.getBlock().getRelative(BlockFace.SOUTH).getType());
+                        return;
+                    }
+                    if (crLoc.getBlock().getRelative(BlockFace.NORTH).getType() == Material.BEDROCK) {
+                        log.info("z-:"+crLoc.getBlock().getRelative(BlockFace.NORTH).getType());
+                        return;
+                    }
+                    crLoc.setY(crLoc.getY() - 1);
+                    if (crLoc.getBlock().getType() != Material.OBSIDIAN) {
+                        log.info("deep:"+crLoc.getBlock().getType());
+                        return;
+                    }
+    
                     int bonus = conf.getInt("crystal-break-bonus");
                     ecoDragonPlayer.addPoint(bonus);
                     plg.getServer().broadcastMessage("[" + plg.getName() + "] " + attackPlayer.getName() + " がエンダークリスタルを破壊しました(bonus: " + bonus + " pt)");
@@ -806,6 +858,7 @@ public class RankingListener extends ListenerFrame {
                 totalPoint += rankUser.getPoint();
                 lastInterval = cur + rank * gateReleaseinterval * 1000; // interval 5 min
                 intervalList.put(rankUser.getPlayer().getUniqueId(), lastInterval);
+                new GatewayAnnounce(plg, rankUser.getPlayer(), lastInterval).runTaskTimer(plg, 100, 100);
             }
             // 個々人のランキング表彰、アイテム進呈
             for (int rank = 1; rank <= entries.size(); rank++) {

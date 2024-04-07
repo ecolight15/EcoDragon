@@ -8,16 +8,11 @@ import org.bukkit.util.Vector;
 
 import java.util.UUID;
 
-import org.bukkit.GameRule;
 import org.bukkit.Location;
-import org.bukkit.Particle;
-import org.bukkit.World;
 import org.bukkit.entity.Arrow;
-import org.bukkit.entity.Phantom;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Stray;
 import org.bukkit.entity.AbstractArrow.PickupStatus;
-import org.bukkit.scheduler.BukkitTask;
 
 
 public class StrayBooster extends TimerFrame {

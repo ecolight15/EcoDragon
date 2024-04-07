@@ -4,14 +4,9 @@ package jp.minecraftuser.ecodragon.listener;
 import jp.minecraftuser.ecoframework.ListenerFrame;
 import jp.minecraftuser.ecoframework.PluginFrame;
 
-import java.util.HashSet;
-import java.util.List;
-
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
-import org.bukkit.block.Block;
-import org.bukkit.block.BlockFace;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -74,6 +69,4 @@ public class LightWeightListener extends ListenerFrame {
             }
         }
     }
-
-
 }

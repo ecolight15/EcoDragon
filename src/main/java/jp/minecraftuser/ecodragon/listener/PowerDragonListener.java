@@ -1,6 +1,8 @@
 
 package jp.minecraftuser.ecodragon.listener;
 
+import static jp.minecraftuser.ecoframework.Utl.sendPluginMessage;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -8,6 +10,9 @@ import java.util.Random;
 import jp.minecraftuser.ecodragon.timer.MobKillTimer;
 import jp.minecraftuser.ecoframework.ListenerFrame;
 import jp.minecraftuser.ecoframework.PluginFrame;
+import jp.minecraftuser.ecoegg.EcoEgg;
+import jp.minecraftuser.ecoegg.EcoEggUtil;
+
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -40,6 +45,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -400,13 +406,15 @@ public class PowerDragonListener extends ListenerFrame {
         item.addEnchantment(Enchantment.DURABILITY, 3);
         return item;
     }
+
     @EventHandler(priority = EventPriority.HIGHEST)
     public void EntityDeath(EntityDeathEvent event) {
-        if (!ranking.isRanking()) return;
-        if (!event.getEntity().getWorld().getName().equals(ranking.getWorld().getName())) return;
-
-        if (null != event.getEntityType()) 
-            switch (event.getEntityType()) {
+        if ( ! event.getEntity().getWorld().getName().toLowerCase().startsWith(conf.getString("worldprefix").toLowerCase())) {
+            return;
+        }
+        EntityType type = event.getEntityType();
+        if (null != type) 
+            switch (type) {
             /* エンダードラゴン強化用ロジック */
             case ENDER_DRAGON:
                 /* 一度全MOBを消滅 */
@@ -425,28 +433,35 @@ public class PowerDragonListener extends ListenerFrame {
                     if (ent.getType() == EntityType.PHANTOM) ent.remove();
                     if (ent.getType() == EntityType.WITHER_SKELETON) ent.remove();
                     if (ent.getType() == EntityType.SKELETON) ent.remove();
+                    if (ent.getType() == EntityType.WARDEN) ent.remove();
                 }   bossdamage = false;
                 Player killer = event.getEntity().getKiller();
                 if (killer != null) {
                     plg.getServer().broadcastMessage("§d[" + plg.getName() + "]§f ["+event.getEntity().getKiller().getName()+"]がエンダードラゴンを撃破");
                 }
-                World w = event.getEntity().getWorld();
-                Location l = event.getEntity().getLocation();
-                for (int cnt = 0; cnt < 8; cnt++) {
+                if (ranking.isRanking()) {
+                    World w = event.getEntity().getWorld();
+                    Location l = event.getEntity().getLocation();
+                    for (int cnt = 0; cnt < 8; cnt++) {
 
-                    w.spawnEntity(l, EntityType.ENDERMAN);
-                    w.spawnEntity(l, EntityType.GHAST);
-                    w.spawnEntity(l, EntityType.CREEPER);
-                }
-                for (int cnt = 0; cnt < 4; cnt++) {
-                    spawnWarden(event.getEntity());
+                        w.spawnEntity(l, EntityType.ENDERMAN);
+                        w.spawnEntity(l, EntityType.GHAST);
+                        w.spawnEntity(l, EntityType.CREEPER);
+                    }
+                    for (int cnt = 0; cnt < 4; cnt++) {
+                        spawnWarden(event.getEntity());
+                    }
                 }
                 break;
             case WITHER:
-                spawnWitherSkeleton(event.getEntity());
+                if (ranking.isRanking()) {
+                    spawnWitherSkeleton(event.getEntity());
+                }
                 break;
             case ENDERMAN:
-                event.setDroppedExp(event.getDroppedExp()*3);
+                if (ranking.isRanking()) {
+                    event.setDroppedExp(event.getDroppedExp()*3);
+                }
                 break;
             default:
                 break;
@@ -601,4 +616,76 @@ public class PowerDragonListener extends ListenerFrame {
 
         return ent;
     }
+
+    /**
+     * プレイヤーエンティティ作用イベント
+     * @param event
+     */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void PlayerInteractEntity(PlayerInteractEntityEvent event) {
+
+        //----------------------------------------------------------------------
+        // たまごのあるMOBの場合
+        //----------------------------------------------------------------------
+        Player player = event.getPlayer();
+        Entity entity = event.getRightClicked();
+
+        //LivienEntity以外はキャンセル
+        if (!(entity instanceof LivingEntity)) {
+            return;
+        }
+        LivingEntity le = (LivingEntity) entity;
+        if (!(EcoEggUtil.existMonsterEgg(le))) return;
+
+        //----------------------------------------------------------------------
+        // プレイヤーの持っている物が魔道書か
+        //----------------------------------------------------------------------
+        boolean bookcheck = true;
+        boolean hand = false;
+        EcoEgg egg = (EcoEgg) plg.getPluginFrame("EcoEgg");
+        if (egg.getGetter() != null) {
+            if (egg.getGetter().equals(player)) {
+                // MOB取得readyと判定
+                bookcheck = false;
+                egg.setGetter(null);
+                log.info("EcoEgg get ready");
+            }
+        }
+        if (bookcheck) {
+            if(!egg.isBook(player.getInventory().getItemInMainHand())){
+                return;
+            }
+            log.info("Detect EcoEgg book (ranking:)" + ranking.isRanking() + ")");
+            hand = true;
+            bookcheck = false;
+        }
+        // えこたまご使用準備が出来ている状態でのインタラクトであればキャンセルする
+        if (!bookcheck) {
+            if (ranking.isRanking()) {
+                if (hand) {
+                    log.info("exec drop EcoEgg");
+                    Location loc = player.getLocation();
+                    Random rand = new Random();
+                    int x = rand.nextInt(6) -3;
+                    int z = rand.nextInt(6) -3;
+                    loc.add(x, loc.getY() + 2, z);
+                    ItemStack item = player.getInventory().getItemInMainHand();
+                    ItemStack drop = item.clone();
+                    drop.setAmount(1);
+                    player.getWorld().dropItem(loc, drop);
+                    if (item.getAmount() > 1) {
+                        item.setAmount(item.getAmount() - 1);
+                        player.getInventory().setItemInMainHand(item);
+                    } else {
+                        player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
+                    }
+                    sendPluginMessage(plg, player, "手に持っていた " + item.getItemMeta().getDisplayName() + "が不思議な力でどこかへ飛んでいった");
+                } else {
+                    sendPluginMessage(plg, player, "不思議な力でえこたまごの力が霧散していった");
+                }
+                event.setCancelled(true);
+            }
+        }
+    }
+
 }
