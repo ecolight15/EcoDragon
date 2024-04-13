@@ -189,6 +189,13 @@ public class PowerDragonListener extends ListenerFrame {
             return;
         }
 
+        if (event.getEntity().isInsideVehicle()) {
+            if ((event.getEntity().getVehicle().getType() == EntityType.BOAT) ||
+                (event.getEntity().getVehicle().getType() == EntityType.MINECART)) {
+                event.getEntity().getVehicle().removePassenger(event.getEntity());
+            }
+        }
+
         // プレイヤーの雷ダメージで地形を粉砕
         playerLightningDamageExplosion(event);
 
@@ -486,7 +493,7 @@ public class PowerDragonListener extends ListenerFrame {
         ent.setCustomNameVisible(true);
         ent.setRemoveWhenFarAway(false);
 
-        PotionEffect p = new PotionEffect(PotionEffectType.SPEED, 20*60*60*24*7*5, 5);
+        PotionEffect p = new PotionEffect(PotionEffectType.SPEED, 20*60*60*24*7*5, 3);
         ent.addPotionEffect(p);
         p = new PotionEffect(PotionEffectType.INCREASE_DAMAGE, 20*60*60*24*7*5, 5);
         ent.addPotionEffect(p);
@@ -511,7 +518,7 @@ public class PowerDragonListener extends ListenerFrame {
         ent.setCustomNameVisible(true);
         ent.setRemoveWhenFarAway(false);
 
-        PotionEffect p = new PotionEffect(PotionEffectType.SPEED, 20*60*60*24*7*5, 5);
+        PotionEffect p = new PotionEffect(PotionEffectType.SPEED, 20*60*60*24*7*5, 2);
         ent.addPotionEffect(p);
         p = new PotionEffect(PotionEffectType.INCREASE_DAMAGE, 20*60*60*24*7*5, 5);
         ent.addPotionEffect(p);
@@ -537,7 +544,7 @@ public class PowerDragonListener extends ListenerFrame {
         ent.setCustomName("闇の眷属(腐)");
         ent.setCustomNameVisible(true);
         ent.setRemoveWhenFarAway(false);
-        PotionEffect p = new PotionEffect(PotionEffectType.SPEED, 20*60*60*24*7*5, 5);
+        PotionEffect p = new PotionEffect(PotionEffectType.SPEED, 20*60*60*24*7*5, 2);
         ent.addPotionEffect(p);
         p = new PotionEffect(PotionEffectType.INCREASE_DAMAGE, 20*60*60*24*7*5, 5);
         ent.addPotionEffect(p);
@@ -599,7 +606,7 @@ public class PowerDragonListener extends ListenerFrame {
         sub.setCustomNameVisible(true);
         sub.setRemoveWhenFarAway(false);
 
-        PotionEffect p = new PotionEffect(PotionEffectType.SPEED, 20*60*60*24*7*5, 5);
+        PotionEffect p = new PotionEffect(PotionEffectType.SPEED, 20*60*60*24*7*5, 3);
         ent.addPotionEffect(p);
         sub.addPotionEffect(p);
         p = new PotionEffect(PotionEffectType.GLOWING, 20*60*60*24*7*5, 5);
