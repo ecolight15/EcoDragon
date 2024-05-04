@@ -10,15 +10,15 @@ import java.util.UUID;
  * @author ecolight
  */
 public class EcoDragonPlayer {
-    private int point = 0;
-    private int damage = 0;
-    private int damageEtc = 0;
-    private UUID playerUUID = null;
-    private PluginFrame plg = null;
-    private boolean rank = false;
-    private boolean pvp = false;
-    private boolean pvpbonus = false;
-    private String name = null;
+    public int point = 0;
+    public int damage = 0;
+    public int damageEtc = 0;
+    public UUID playerUUID = null;
+    public PluginFrame plg = null;
+    public boolean rank = false;
+    public boolean pvp = false;
+    public boolean pvpbonus = false;
+    public String name = null;
     
     /**
      * コンストラクタ(プレイヤー指定)

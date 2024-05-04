@@ -53,7 +53,7 @@ public class LightWeightListener extends ListenerFrame {
             ItemStack lhand = player.getInventory().getItemInOffHand();
             ItemStack rhand = player.getInventory().getItemInMainHand();
             ItemStack body = player.getInventory().getChestplate();
-            if (body.getType() != Material.ELYTRA) {
+            if ((body == null) || (body.getType() != Material.ELYTRA)) {
                 return;
             }
             if ((lhand.getType() != Material.FIREWORK_ROCKET) &&

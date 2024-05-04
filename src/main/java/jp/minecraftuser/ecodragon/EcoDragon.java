@@ -68,6 +68,10 @@ public class EcoDragon extends PluginFrame {
         conf.registerInt("fishing-salmon-bonus");
         conf.registerInt("fishing-clownfish-bonus");
         conf.registerInt("fishing-pufferfish-bonus");
+        conf.registerInt("fishing-enchantbook-bonus");
+        conf.registerInt("fishing-nametag-bonus");
+        conf.registerInt("fishing-shell-bonus");
+        conf.registerInt("fishing-saddle-bonus");
         conf.registerInt("before-world-border");
         conf.registerArrayString("stopworld");
         registerPluginConfig(conf);

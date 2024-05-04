@@ -8,5 +8,9 @@ fishing-bonus: 2000
 fishing-salmon-bonus: 6000
 fishing-clownfish-bonus: 100000
 fishing-pufferfish-bonus: 12000
+fishing-enchantbook-bonus: 150000
+fishing-nametag-bonus: 150000
+fishing-shell-bonus: 150000
+fishing-saddle-bonus: 150000
 before-world-border: 1000
 stopworld: []

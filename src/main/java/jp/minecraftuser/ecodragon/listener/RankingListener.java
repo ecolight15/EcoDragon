@@ -713,30 +713,47 @@ public class RankingListener extends ListenerFrame {
         if (event.getState() == PlayerFishEvent.State.CAUGHT_FISH) {
             EcoDragonPlayer ecoDragonPlayer = ecoDragonUserList.getEcoDragonPlayer(player);
 
-
             int point = 0;
-            if (event.getCaught().getName().equals("item.item.fish.cod.raw")) {
+            log.info("fish caught=" + event.getCaught().getName());
+            if (event.getCaught().getName().equalsIgnoreCase("Raw Cod")) {
                 point = conf.getInt("fishing-bonus");
                 ecoDragonPlayer.addPoint(point);
                 player.sendMessage("[" + plg.getName() + "] さかなだー！ (" + point + " pt)");
-            } else if (event.getCaught().getName().equals("item.item.fish.salmon.raw")) {
+            } else if (event.getCaught().getName().equalsIgnoreCase("Raw Salmon")) {
                 point = conf.getInt("fishing-salmon-bonus");
                 ecoDragonPlayer.addPoint(point);
                 player.sendMessage("[" + plg.getName() + "] しゃけだー！ (" + point + " pt)");
-            } else if (event.getCaught().getName().equals("item.item.fish.pufferfish.raw")) {
+            } else if (event.getCaught().getName().equalsIgnoreCase("Pufferfish")) {
                 point = conf.getInt("fishing-pufferfish-bonus");
                 ecoDragonPlayer.addPoint(point);
                 player.sendMessage("[" + plg.getName() + "] ふぐだー！ (" + point + " pt)");
-            } else if (event.getCaught().getName().equals("item.item.fish.clownfish.raw")) {
+            } else if ((event.getCaught().getName().equalsIgnoreCase("Tropical fish")) || (event.getCaught().getName().equalsIgnoreCase("Clownfish"))) {
                 point = conf.getInt("fishing-clownfish-bonus");
                 ecoDragonPlayer.addPoint(point);
                 player.sendMessage("[" + plg.getName() + "] くまのみだー！ (" + point + " pt)");
+            } else if (event.getCaught().getName().equalsIgnoreCase("Enchanted Book")) {
+                point = conf.getInt("fishing-enchantbook-bonus");
+                ecoDragonPlayer.addPoint(point);
+                player.sendMessage("[" + plg.getName() + "] エンチャント本だー！ (" + point + " pt)");
+            } else if (event.getCaught().getName().equalsIgnoreCase("Name Tag")) {
+                point = conf.getInt("fishing-nametag-bonus");
+                ecoDragonPlayer.addPoint(point);
+                player.sendMessage("[" + plg.getName() + "] 名札だー！ (" + point + " pt)");
+            } else if (event.getCaught().getName().equalsIgnoreCase("Nautilus Shell")) {
+                point = conf.getInt("fishing-shell-bonus");
+                ecoDragonPlayer.addPoint(point);
+                player.sendMessage("[" + plg.getName() + "] 化石だー！ (" + point + " pt)");
+            } else if (event.getCaught().getName().equalsIgnoreCase("Saddle")) {
+                point = conf.getInt("fishing-saddle-bonus");
+                ecoDragonPlayer.addPoint(point);
+                player.sendMessage("[" + plg.getName() + "] サドルだー！ (" + point + " pt)");
             } else {
                 point = conf.getInt("fishing-trash");
                 ecoDragonPlayer.addPoint(point);
                 player.sendMessage("[" + plg.getName() + "] ごみだー！ (" + point + " pt)");
             }
         }
+        refreshScoreBoard();
     }
 
     /**
@@ -864,6 +881,10 @@ public class RankingListener extends ListenerFrame {
             for (int rank = 1; rank <= entries.size(); rank++) {
                 EcoDragonPlayer rankUser = (EcoDragonPlayer) ((Map.Entry) entries.get(rank - 1)).getValue();
                 Player player = rankUser.getPlayer();
+                if (player == null) {
+                    log.warning("rank = " + rank + ", getPlayer failed UUID=" + rankUser.playerUUID.toString());
+                    continue;
+                }
                 log.info("ranking:" + (rank) + "位:" + player.getName());
                 int per = (rankUser.getPoint() * 100) / totalPoint;
                 if (rank <= 3) {

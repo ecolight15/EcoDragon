@@ -376,7 +376,7 @@ public class PowerDragonListener extends ListenerFrame {
                         Zombie ent = spawnZombie(event.getEntity());
                         ent.setTarget(monsterTargetPlayer);
                     } else if (hp > 40) {   // HPが20%以上の場合のMOB
-                        Phantom ent = spawnPhantom((Player) event.getEntity(), event.getEntity().getLocation(), 0, 3);
+                        Phantom ent = spawnPhantom((LivingEntity) event.getEntity(), event.getEntity().getLocation(), 0, 3);
                         ent.setTarget(monsterTargetPlayer);
                     } else if (hp > 20) {   // HPが20%以上の場合のMOB
                         WitherSkeleton ent = spawnWitherSkeleton(event.getEntity());
