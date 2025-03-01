@@ -47,6 +47,9 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.metadata.FixedMetadataValue;
+import org.bukkit.metadata.MetadataValue;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.projectiles.ProjectileSource;
@@ -60,6 +63,7 @@ public class PowerDragonListener extends ListenerFrame {
     private static double lasthp = 0;
     private static boolean bossdamage = false;
     public static int hp = 0;
+    private static final String FLAG_KEY_KENZOKU = "闇の眷属";
 
     /**
      * コンストラクタ
@@ -419,6 +423,11 @@ public class PowerDragonListener extends ListenerFrame {
         if ( ! event.getEntity().getWorld().getName().toLowerCase().startsWith(conf.getString("worldprefix").toLowerCase())) {
             return;
         }
+        Entity entity = event.getEntity();
+        if (getKenzokuFlag(entity)) {
+            event.setDroppedExp(event.getDroppedExp() * 50);
+        }
+
         EntityType type = event.getEntityType();
         if (null != type) 
             switch (type) {
@@ -475,6 +484,20 @@ public class PowerDragonListener extends ListenerFrame {
         }
     }
 
+    public void setKenzokuFlag(Entity entity, boolean value) {
+        entity.setMetadata(FLAG_KEY_KENZOKU, new FixedMetadataValue(plg, value));
+    }
+
+    public boolean getKenzokuFlag(Entity entity) {
+        List<MetadataValue> metadata = entity.getMetadata(FLAG_KEY_KENZOKU);
+        for (MetadataValue value : metadata) {
+            if (value.getOwningPlugin().equals(plg)) {
+                return value.asBoolean();
+            }
+        }
+        return false; // デフォルト値
+    }
+
     public WitherSkeleton spawnWitherSkeleton(Entity entity) {
         WitherSkeleton ent = (WitherSkeleton)entity.getWorld().spawnEntity(entity.getLocation(), EntityType.WITHER_SKELETON);
         ent.getEquipment().setItemInMainHand(addAtkEnchant(new ItemStack(Material.DIAMOND_SWORD)));
@@ -488,6 +511,7 @@ public class PowerDragonListener extends ListenerFrame {
         ent.getEquipment().setLeggings(addDefEnchant(new ItemStack(Material.DIAMOND_LEGGINGS)));
         ent.getEquipment().setLeggingsDropChance(0.001f);
         // ステータス
+        setKenzokuFlag(ent, true);
         ent.setCanPickupItems(false);
         ent.setCustomName("闇の眷属(骨)");
         ent.setCustomNameVisible(true);
@@ -496,6 +520,8 @@ public class PowerDragonListener extends ListenerFrame {
         PotionEffect p = new PotionEffect(PotionEffectType.SPEED, 20*60*60*24*7*5, 3);
         ent.addPotionEffect(p);
         p = new PotionEffect(PotionEffectType.INCREASE_DAMAGE, 20*60*60*24*7*5, 5);
+        ent.addPotionEffect(p);
+        p = new PotionEffect(PotionEffectType.GLOWING, 20*60*60*24*7*5, 5);
         ent.addPotionEffect(p);
 
         return ent;
@@ -513,6 +539,7 @@ public class PowerDragonListener extends ListenerFrame {
         ent.getEquipment().setLeggings(addDefEnchant(new ItemStack(Material.DIAMOND_LEGGINGS)));
         ent.getEquipment().setLeggingsDropChance(0.001f);
         // ステータス
+        setKenzokuFlag(ent, true);
         ent.setCanPickupItems(false);
         ent.setCustomName("闇の眷属(弓)");
         ent.setCustomNameVisible(true);
@@ -521,6 +548,8 @@ public class PowerDragonListener extends ListenerFrame {
         PotionEffect p = new PotionEffect(PotionEffectType.SPEED, 20*60*60*24*7*5, 2);
         ent.addPotionEffect(p);
         p = new PotionEffect(PotionEffectType.INCREASE_DAMAGE, 20*60*60*24*7*5, 5);
+        ent.addPotionEffect(p);
+        p = new PotionEffect(PotionEffectType.GLOWING, 20*60*60*24*7*5, 5);
         ent.addPotionEffect(p);
 
         return ent;
@@ -540,6 +569,7 @@ public class PowerDragonListener extends ListenerFrame {
         ent.getEquipment().setLeggingsDropChance(0.001f);
         
         // ステータス
+        setKenzokuFlag(ent, true);
         ent.setCanPickupItems(false);
         ent.setCustomName("闇の眷属(腐)");
         ent.setCustomNameVisible(true);
@@ -548,11 +578,14 @@ public class PowerDragonListener extends ListenerFrame {
         ent.addPotionEffect(p);
         p = new PotionEffect(PotionEffectType.INCREASE_DAMAGE, 20*60*60*24*7*5, 5);
         ent.addPotionEffect(p);
+        p = new PotionEffect(PotionEffectType.GLOWING, 20*60*60*24*7*5, 5);
+        ent.addPotionEffect(p);
         return ent;
     }
     public Warden spawnWarden(Entity entity) {
         Warden ent = (Warden)entity.getWorld().spawnEntity(entity.getLocation(), EntityType.WARDEN);
         // ステータス
+        setKenzokuFlag(ent, true);
         ent.setCanPickupItems(false);
         ent.setCustomName("闇の眷属(深)");
         ent.setCustomNameVisible(true);
@@ -572,6 +605,7 @@ public class PowerDragonListener extends ListenerFrame {
         Stray sub = (Stray)loc.getWorld().spawnEntity(loc, EntityType.STRAY);
 
         // ステータス
+        //setKenzokuFlag(ent, true);
         ent.addPassenger(sub);
         ent.setCanPickupItems(false);
         ent.setCustomName("闇の眷属(飛)");
@@ -601,6 +635,7 @@ public class PowerDragonListener extends ListenerFrame {
         sub.getEquipment().setLeggings(addDefEnchant(new ItemStack(Material.DIAMOND_LEGGINGS)));
         sub.getEquipment().setLeggingsDropChance(0.001f);
         // ステータス
+        setKenzokuFlag(sub, true);
         sub.setCanPickupItems(false);
         sub.setCustomName("闇の眷属(飛弓)");
         sub.setCustomNameVisible(true);
