@@ -870,10 +870,21 @@ public class RankingListener extends ListenerFrame {
             totalPoint = 0;
             Long cur = new Date().getTime();
             // 全体のポイントを集計する、ゲート開放予定時刻を算出
+            int skipUser = 0;
             for (int rank = 1; rank <= entries.size(); rank++) {
                 EcoDragonPlayer rankUser = (EcoDragonPlayer) ((Map.Entry) entries.get(rank - 1)).getValue();
                 totalPoint += rankUser.getPoint();
-                lastInterval = cur + 10000 + (rank - 1) * gateReleaseinterval * 1000; // interval 5 min
+                lastInterval = cur + 10000 + (rank - 1 - skipUser) * gateReleaseinterval * 1000; // interval 5 min
+                Player player = rankUser.getPlayer();
+                if (player == null) {
+                    skipUser++;
+                    continue;
+                }
+                UUID uuid = player.getUniqueId();
+                if (uuid == null) {
+                    skipUser++;
+                    continue;
+                }
                 intervalList.put(rankUser.getPlayer().getUniqueId(), lastInterval);
                 new GatewayAnnounce(plg, rankUser.getPlayer(), lastInterval).runTaskTimer(plg, 100, 100);
             }
