@@ -425,7 +425,7 @@ public class PowerDragonListener extends ListenerFrame {
         }
         Entity entity = event.getEntity();
         if (getKenzokuFlag(entity)) {
-            event.setDroppedExp(event.getDroppedExp() * 50);
+            event.setDroppedExp(event.getDroppedExp() * conf.getInt("mob-exp-multiplier"));
         }
 
         EntityType type = event.getEntityType();
@@ -605,7 +605,7 @@ public class PowerDragonListener extends ListenerFrame {
         Stray sub = (Stray)loc.getWorld().spawnEntity(loc, EntityType.STRAY);
 
         // ステータス
-        //setKenzokuFlag(ent, true);
+        setKenzokuFlag(ent, true);
         ent.addPassenger(sub);
         ent.setCanPickupItems(false);
         ent.setCustomName("闇の眷属(飛)");

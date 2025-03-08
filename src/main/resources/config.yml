@@ -1,5 +1,6 @@
 worldprefix: end
 roundmax: 5
+mob-exp-multiplier: 10
 crystal-break-penalty: -200000
 crystal-break-bonus: 10000
 crystal-place-bonus: 25000

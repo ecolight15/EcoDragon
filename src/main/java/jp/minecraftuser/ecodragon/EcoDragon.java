@@ -60,6 +60,7 @@ public class EcoDragon extends PluginFrame {
         ConfigFrame conf = new EcoDragonConfig(this);
         conf.registerString("worldprefix");
         conf.registerInt("roundmax");
+        conf.registerInt("mob-exp-multiplier");
         conf.registerInt("crystal-break-penalty");
         conf.registerInt("crystal-break-bonus");
         conf.registerInt("crystal-place-bonus");
