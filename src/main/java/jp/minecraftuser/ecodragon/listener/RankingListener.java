@@ -100,7 +100,7 @@ public class RankingListener extends ListenerFrame {
     private static Objective dmgobj = null;
     private static long lastInterval = 0;
     private static WorldTimer timer = null;
-    private static boolean first = false;
+    private static boolean first = true;
     private static int gateReleaseinterval = 300; // 5 min 
 
     /**
