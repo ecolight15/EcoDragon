@@ -1,4 +1,3 @@
-
 package jp.minecraftuser.ecodragon;
 
 import jp.minecraftuser.ecodragon.command.EcdBookCommand;
@@ -20,6 +19,11 @@ import jp.minecraftuser.ecodragon.timer.SpaceBoundary;
 import jp.minecraftuser.ecoframework.PluginFrame;
 import jp.minecraftuser.ecoframework.CommandFrame;
 import jp.minecraftuser.ecoframework.ConfigFrame;
+import org.bukkit.Bukkit;
+import org.bukkit.World;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * エンダードラゴン改造プラグインメインクラス
@@ -45,9 +49,9 @@ public class EcoDragon extends PluginFrame {
      * プラグイン停止
      */
     @Override
-    public void onDisable()
-    {
-        timer.cancel();
+    public void onDisable() {
+        if (timer != null) timer.cancel();
+        addCurrentWorldToStopWorld();
         disable();
     }
 
@@ -110,5 +114,21 @@ public class EcoDragon extends PluginFrame {
         registerPluginListener(new PowerDragonListener(this, "dragon"));
         registerPluginListener(new LightWeightListener(this, "light"));
         registerPluginListener(new DragonEggListener(this, "egg"));
+    }
+
+    private void addCurrentWorldToStopWorld() {
+        ConfigFrame config = getDefaultConfig();
+        String worldPrefix = config.getString("worldprefix"); // Adjusted to use single argument
+        List<String> stopWorlds = config.getArrayList("stopworld");
+        if (stopWorlds == null) stopWorlds = new ArrayList<>();
+
+        for (World world : Bukkit.getWorlds()) {
+            if (world.getName().startsWith(worldPrefix) && !stopWorlds.contains(world.getName())) {
+                stopWorlds.add(world.getName());
+            }
+        }
+        config.getConf().set("stopworld", stopWorlds);
+        config.saveConfig();
+        config.reload();
     }
 }
