@@ -33,6 +33,8 @@ public class EcoDragon extends PluginFrame {
     
     PhantomSpawner timer;
     SpaceBoundary space;
+    private static final String TEMP_STOPWORLD_KEY = "tempStopworld";
+
     /**
      * プラグイン起動
      */
@@ -51,7 +53,8 @@ public class EcoDragon extends PluginFrame {
     @Override
     public void onDisable() {
         if (timer != null) timer.cancel();
-        addCurrentWorldToStopWorld();
+        moveTempStopWorldsToStopWorld();
+        saveTempStopWorlds();
         disable();
     }
 
@@ -116,18 +119,35 @@ public class EcoDragon extends PluginFrame {
         registerPluginListener(new DragonEggListener(this, "egg"));
     }
 
-    private void addCurrentWorldToStopWorld() {
+    private void saveTempStopWorlds() {
         ConfigFrame config = getDefaultConfig();
-        String worldPrefix = config.getString("worldprefix"); // Adjusted to use single argument
-        List<String> stopWorlds = config.getArrayList("stopworld");
-        if (stopWorlds == null) stopWorlds = new ArrayList<>();
+        String worldPrefix = config.getString("worldprefix");
+        List<String> tempStopWorlds = config.getArrayList(TEMP_STOPWORLD_KEY);
 
         for (World world : Bukkit.getWorlds()) {
-            if (world.getName().startsWith(worldPrefix) && !stopWorlds.contains(world.getName())) {
-                stopWorlds.add(world.getName());
+            if (world.getName().startsWith(worldPrefix) && !tempStopWorlds.contains(world.getName())) {
+                tempStopWorlds.add(world.getName());
             }
         }
+
+        config.getConf().set(TEMP_STOPWORLD_KEY, tempStopWorlds);
+        config.saveConfig();
+        config.reload();
+    }
+
+    private void moveTempStopWorldsToStopWorld() {
+        ConfigFrame config = getDefaultConfig();
+        List<String> tempStopWorlds = config.getArrayList(TEMP_STOPWORLD_KEY);
+        List<String> stopWorlds = config.getArrayList("stopworld");
+
+        for (String world : tempStopWorlds) {
+            if (!stopWorlds.contains(world)) {
+                stopWorlds.add(world);
+            }
+        }
+
         config.getConf().set("stopworld", stopWorlds);
+        config.getConf().set(TEMP_STOPWORLD_KEY, new ArrayList<>()); // Clear tempStopworld
         config.saveConfig();
         config.reload();
     }
