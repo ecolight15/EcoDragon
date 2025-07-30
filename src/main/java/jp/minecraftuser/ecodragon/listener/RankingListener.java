@@ -579,11 +579,42 @@ public class RankingListener extends ListenerFrame {
                     attackPlayer.sendMessage("[" + plg.getName() + "] エンダークリスタルの破壊ボーナス: " + bonus + " pt");
                     log.info("[" + plg.getName() + "] " + attackPlayer.getName() + " エンダークリスタルの破壊ボーナス: " + bonus + " pt");
                 } else {
-                    int penalty = conf.getInt("crystal-break-penalty");
-                    ecoDragonPlayer.addPoint(penalty);
-                    plg.getServer().broadcastMessage("[" + plg.getName() + "] " + attackPlayer.getName() + " がエンダークリスタルを破壊しました(penalty: " + penalty + " pt)");
-                    attackPlayer.sendMessage("[" + plg.getName() + "] エンダークリスタルの破壊ペナルティ: " + penalty + " pt");
-                    log.info("[" + plg.getName() + "] " + attackPlayer.getName() + "エンダークリスタルの破壊ペナルティ: " + penalty + " pt");
+                    // エンドラが存在しない場合でも、塔のクリスタルかどうかを判定
+                    // 塔のクリスタルの場合はボーナス、そうでなければペナルティ
+                    Location crLoc = event.getEntity().getLocation();
+                    boolean isTowerCrystal = false;
+                    
+                    // 塔のクリスタルかどうかを判定（エンドラ存在時と同じロジック）
+                    if (crLoc.getBlock().getType() == Material.FIRE) {
+                        crLoc.setY(crLoc.getY() - 1);
+                        if (crLoc.getBlock().getType() == Material.BEDROCK) {
+                            if (crLoc.getBlock().getRelative(BlockFace.EAST).getType() != Material.BEDROCK &&
+                                crLoc.getBlock().getRelative(BlockFace.WEST).getType() != Material.BEDROCK &&
+                                crLoc.getBlock().getRelative(BlockFace.SOUTH).getType() != Material.BEDROCK &&
+                                crLoc.getBlock().getRelative(BlockFace.NORTH).getType() != Material.BEDROCK) {
+                                crLoc.setY(crLoc.getY() - 1);
+                                if (crLoc.getBlock().getType() == Material.OBSIDIAN) {
+                                    isTowerCrystal = true;
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (isTowerCrystal) {
+                        // 塔のクリスタル破壊はボーナス
+                        int bonus = conf.getInt("crystal-break-bonus");
+                        ecoDragonPlayer.addPoint(bonus);
+                        plg.getServer().broadcastMessage("[" + plg.getName() + "] " + attackPlayer.getName() + " がエンダークリスタルを破壊しました(bonus: " + bonus + " pt)");
+                        attackPlayer.sendMessage("[" + plg.getName() + "] エンダークリスタルの破壊ボーナス: " + bonus + " pt");
+                        log.info("[" + plg.getName() + "] " + attackPlayer.getName() + " エンダークリスタルの破壊ボーナス: " + bonus + " pt");
+                    } else {
+                        // プレイヤー設置のクリスタル破壊はペナルティ
+                        int penalty = conf.getInt("crystal-break-penalty");
+                        ecoDragonPlayer.addPoint(penalty);
+                        plg.getServer().broadcastMessage("[" + plg.getName() + "] " + attackPlayer.getName() + " がエンダークリスタルを破壊しました(penalty: " + penalty + " pt)");
+                        attackPlayer.sendMessage("[" + plg.getName() + "] エンダークリスタルの破壊ペナルティ: " + penalty + " pt");
+                        log.info("[" + plg.getName() + "] " + attackPlayer.getName() + "エンダークリスタルの破壊ペナルティ: " + penalty + " pt");
+                    }
                 }
                 refreshScoreBoard();
                 break;
